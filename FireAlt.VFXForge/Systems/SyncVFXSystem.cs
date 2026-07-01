@@ -50,7 +50,7 @@ namespace FireAlt.VFXForge
         public void OnDestroy(ref SystemState state)
         {
             // First dispose the graphics buffers, then clear VFX data + reinit VFX Graphs to not have a warning
-            SystemAPI.ManagedAPI.GetSingleton<VFXGraphicsBuffersSingleton>().Dispose();
+            SystemAPI.GetSingleton<VFXGraphicsBuffersSingleton>().Dispose();
             SystemAPI.GetSingleton<VFXSingleton>().Dispose();
             _stateChanges.Dispose();
         }
@@ -95,7 +95,7 @@ namespace FireAlt.VFXForge
             {
                 ResolvePersistentHandle = resolvePersistentHandle,
                 WorldDeltaTime = deltaTime,
-                ManagedSingletonQuery = SystemAPI.QueryBuilder().WithAll<VFXGraphicsBuffersSingleton>().Build(),
+                GraphicsBuffersObject = SystemAPI.GetSingleton<VFXGraphicsBuffersSingleton>().Value,
                 StateChanges = _stateChanges
             };
             Burst.UploadData.Data.Invoke(vfxSingleton, args);

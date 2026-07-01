@@ -14,7 +14,7 @@ namespace FireAlt.VFXForge
     {
         private struct ManagedArgs
         {
-            public EntityQuery ManagedSingletonQuery;
+            public UnityObjectRef<VFXGraphicsBuffersObject> GraphicsBuffersObject;
             public float WorldDeltaTime;
             public JobHandle ResolvePersistentHandle;
             public NativeList<VFXStateChange> StateChanges;
@@ -35,7 +35,7 @@ namespace FireAlt.VFXForge
             ref var vfxSingleton = ref managedArgs.First;
             ref var args = ref managedArgs.Second;
             
-            var graphicsBuffersSingleton = args.ManagedSingletonQuery.GetSingleton<VFXGraphicsBuffersSingleton>();
+            var graphicsBuffersObject = args.GraphicsBuffersObject.Value;
             
             foreach (var stateChange in args.StateChanges)
             {
@@ -49,13 +49,13 @@ namespace FireAlt.VFXForge
                     var timeoutDuration = definition.timeoutDuration;
                     if (definition.IsPersistent)
                     {
-                        graphicsBuffersSingleton.PersistentVFXGraphEntries[key] = new PersistentVFXGraphicsBuffers(
+                        graphicsBuffersObject.PersistentVFXGraphEntries[key] = new PersistentVFXGraphicsBuffers(
                                 hybridVisualEffect.VisualEffect, definition);
                         vfxSingleton.PersistentAliveVFX.GetValueAsRef(key).SetTimeoutDuration(timeoutDuration);
                     }
                     else
                     {
-                        graphicsBuffersSingleton.InstantVFXGraphEntries[key] = new InstantVFXGraphicsBuffers(
+                        graphicsBuffersObject.InstantVFXGraphEntries[key] = new InstantVFXGraphicsBuffers(
                             hybridVisualEffect.VisualEffect, definition);
                         vfxSingleton.InstantAliveVFX.GetValueAsRef(key).SetTimeoutDuration(timeoutDuration);
                     }
@@ -64,11 +64,11 @@ namespace FireAlt.VFXForge
                 {
                     if (definition.IsPersistent)
                     {
-                        graphicsBuffersSingleton.PersistentVFXGraphEntries[key].Dispose();
+                        graphicsBuffersObject.PersistentVFXGraphEntries[key].Dispose();
                     }
                     else
                     {
-                        graphicsBuffersSingleton.InstantVFXGraphEntries[key].Dispose();
+                        graphicsBuffersObject.InstantVFXGraphEntries[key].Dispose();
                     }
                 }
             }
@@ -87,7 +87,7 @@ namespace FireAlt.VFXForge
             {
                 ref var entry = ref vfxSingleton.GetInstant(pair.Key);
                 var vfxGraph = entry.HybridVisualEffect.Value.VisualEffect;
-                var graphicsBuffers = graphicsBuffersSingleton.InstantVFXGraphEntries[pair.Key];
+                var graphicsBuffers = graphicsBuffersObject.InstantVFXGraphEntries[pair.Key];
                 if (!graphicsBuffers.HasRequiredProperties()) continue;
 
                 var spawnRequestCount = entry.RequestsCount;
@@ -126,7 +126,7 @@ namespace FireAlt.VFXForge
             {
                 ref var entry = ref vfxSingleton.GetPersistent(pair.Key);
                 var vfxGraph = entry.HybridVisualEffect.Value.VisualEffect;
-                var graphicsBuffers = graphicsBuffersSingleton.PersistentVFXGraphEntries[pair.Key];
+                var graphicsBuffers = graphicsBuffersObject.PersistentVFXGraphEntries[pair.Key];
                 if (!graphicsBuffers.HasRequiredProperties()) continue;
                 
                 if (isPlaying)
@@ -162,15 +162,10 @@ namespace FireAlt.VFXForge
         
         public void OnCreate(ref SystemState state)
         {
-            const int vfxCapacity = 32;
+            const int VFX_CAPACITY = 32;
             
-            state.EntityManager.CreateSingleton(new VFXSingleton(vfxCapacity));
-            var entity = state.EntityManager.CreateEntity(typeof(VFXGraphicsBuffersSingleton));
-            state.EntityManager.AddComponentObject(entity, new VFXGraphicsBuffersSingleton
-            {
-                InstantVFXGraphEntries = new Dictionary<VFXKey, InstantVFXGraphicsBuffers>(vfxCapacity),
-                PersistentVFXGraphEntries = new Dictionary<VFXKey, PersistentVFXGraphicsBuffers>(vfxCapacity)
-            });
+            state.EntityManager.CreateSingleton(new VFXSingleton(VFX_CAPACITY));
+            state.EntityManager.CreateSingleton(new VFXGraphicsBuffersSingleton(VFX_CAPACITY));
             
             _stateChanges = new NativeList<VFXStateChange>(4, Allocator.Persistent);
         }

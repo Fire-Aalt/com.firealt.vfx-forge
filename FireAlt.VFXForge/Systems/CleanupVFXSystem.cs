@@ -13,20 +13,20 @@ namespace FireAlt.VFXForge
         {
             EntityManager.CompleteDependencyBeforeRW<VFXSingleton>();
             var vfxSingleton = SystemAPI.GetSingleton<VFXSingleton>();
-            var graphicsBuffersSingleton = SystemAPI.ManagedAPI.GetSingleton<VFXGraphicsBuffersSingleton>();
+            var graphicsBuffersObject = SystemAPI.GetSingleton<VFXGraphicsBuffersSingleton>().Value.Value;
             
             foreach (var registeredVFX in SystemAPI.Query<RefRO<RegisteredVFX>>()
                          .WithAbsent<HybridVisualEffectData>())
             {
                 if (registeredVFX.ValueRO.Key.Equals(VFXKey.Null)) continue;
-                RemoveVFXEntry(ref vfxSingleton, graphicsBuffersSingleton, registeredVFX.ValueRO.Key);
+                RemoveVFXEntry(ref vfxSingleton, graphicsBuffersObject, registeredVFX.ValueRO.Key);
             }
 
             EntityManager.RemoveComponent<RegisteredVFX>(SystemAPI.QueryBuilder().WithAll<RegisteredVFX>()
                 .WithAbsent<HybridVisualEffectData>().Build());
         }
         
-        private void RemoveVFXEntry(ref VFXSingleton vfxSingleton, VFXGraphicsBuffersSingleton graphicsBuffersSingleton,
+        private void RemoveVFXEntry(ref VFXSingleton vfxSingleton, VFXGraphicsBuffersObject graphicsBuffersObject,
             VFXKey key)
         {
             if (!vfxSingleton.IsPersistent.ContainsKey(key))
@@ -39,16 +39,16 @@ namespace FireAlt.VFXForge
                 vfxSingleton.InstantAliveVFX.Remove(key);
                 vfxSingleton.InstantVFXGraphEntries[key].Dispose();
                 vfxSingleton.InstantVFXGraphEntries.Remove(key);
-                graphicsBuffersSingleton.InstantVFXGraphEntries[key].Dispose();
-                graphicsBuffersSingleton.InstantVFXGraphEntries.Remove(key);
+                graphicsBuffersObject.InstantVFXGraphEntries[key].Dispose();
+                graphicsBuffersObject.InstantVFXGraphEntries.Remove(key);
             }
             else
             {
                 vfxSingleton.PersistentAliveVFX.Remove(key);
                 vfxSingleton.PersistentVFXGraphEntries[key].Dispose();
                 vfxSingleton.PersistentVFXGraphEntries.Remove(key);
-                graphicsBuffersSingleton.PersistentVFXGraphEntries[key].Dispose();
-                graphicsBuffersSingleton.PersistentVFXGraphEntries.Remove(key);
+                graphicsBuffersObject.PersistentVFXGraphEntries[key].Dispose();
+                graphicsBuffersObject.PersistentVFXGraphEntries.Remove(key);
             }
 
             vfxSingleton.IsPersistent.Remove(key);

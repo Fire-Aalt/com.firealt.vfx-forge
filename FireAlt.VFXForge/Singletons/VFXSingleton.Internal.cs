@@ -4,7 +4,6 @@ using FireAlt.Core.Extensions;
 using FireAlt.VFXForge.Data;
 using Unity.Assertions;
 using Unity.Collections;
-using Unity.Entities;
 
 namespace FireAlt.VFXForge
 {

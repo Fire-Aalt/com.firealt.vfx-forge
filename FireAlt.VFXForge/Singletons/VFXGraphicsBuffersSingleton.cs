@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using FireAlt.VFXForge.Data;
 using Unity.Assertions;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
@@ -12,7 +13,25 @@ using UnityEngine.VFX;
 
 namespace FireAlt.VFXForge
 {
-    internal class VFXGraphicsBuffersSingleton : IComponentData, IDisposable
+    internal struct VFXGraphicsBuffersSingleton : IComponentData, IDisposable
+    {
+        public UnityObjectRef<VFXGraphicsBuffersObject> Value;
+
+        public VFXGraphicsBuffersSingleton(int capacity)
+        {
+            Value = ScriptableObject.CreateInstance<VFXGraphicsBuffersObject>();
+            Value.Value.InstantVFXGraphEntries = new Dictionary<VFXKey, InstantVFXGraphicsBuffers>(capacity);
+            Value.Value.PersistentVFXGraphEntries = new Dictionary<VFXKey, PersistentVFXGraphicsBuffers>(capacity);
+        }
+        
+        [BurstDiscard]
+        public void Dispose()
+        {
+            Value.Value.Dispose();
+        }
+    }
+
+    public class VFXGraphicsBuffersObject : ScriptableObject, IDisposable
     {
         public Dictionary<VFXKey, InstantVFXGraphicsBuffers> InstantVFXGraphEntries;
         public Dictionary<VFXKey, PersistentVFXGraphicsBuffers> PersistentVFXGraphEntries;
