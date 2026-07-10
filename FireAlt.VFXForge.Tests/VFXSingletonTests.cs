@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using FireAlt.VFXForge.Data;
 using NUnit.Framework;
+using UnityEngine;
 using UnityEngine.TestTools;
 
 namespace FireAlt.VFXForge.Tests
@@ -74,6 +75,80 @@ namespace FireAlt.VFXForge.Tests
                     ref var persistent = ref singleton.GetPersistent(definition);
                     Assert.IsFalse(persistent.HasPendingRequests);
                 });
+            });
+        }
+
+        [UnityTest]
+        public IEnumerator CleanupBeforeSync_WhenGraphicsBuffersWereNotCreated_RemovesRegistration()
+        {
+            yield return VFXPlayModeTestFixture.Run(fixture =>
+            {
+                var definition = fixture.CreateDefinition(21, VFXType.Instant);
+                var hybridVisualEffect = fixture.CreateAndRegisterVisualEffect(definition);
+
+                hybridVisualEffect.Cleanup();
+
+                Assert.DoesNotThrow(() => fixture.CleanupVFXSystem.Update());
+                Assert.IsFalse(fixture.GetSingleton().ContainsInstant(definition));
+                Assert.DoesNotThrow(() => fixture.CleanupVFXSystem.Update());
+            });
+        }
+
+        [UnityTest]
+        public IEnumerator Cleanup_WhenRegistrationIsPartiallyRemoved_RepairsRemainingState()
+        {
+            yield return VFXPlayModeTestFixture.Run(fixture =>
+            {
+                var definition = fixture.CreateDefinition(23, VFXType.Instant);
+                var hybridVisualEffect = fixture.CreateAndRegisterVisualEffect(definition);
+                var singleton = fixture.GetSingleton();
+
+                singleton.GetInstant(definition).Dispose();
+                singleton.InstantVFXGraphEntries.Remove(definition);
+                Assert.IsTrue(singleton.IsPersistent.ContainsKey(definition));
+
+                hybridVisualEffect.Cleanup();
+
+                Assert.DoesNotThrow(() => fixture.CleanupVFXSystem.Update());
+                Assert.IsFalse(singleton.IsPersistent.ContainsKey(definition));
+            });
+        }
+
+        [UnityTest]
+        public IEnumerator Cleanup_WhenManagedGraphicsStateWasLost_RemovesRegistration()
+        {
+            yield return VFXPlayModeTestFixture.Run(fixture =>
+            {
+                var definition = fixture.CreateDefinition(24, VFXType.Instant);
+                var hybridVisualEffect = fixture.CreateAndRegisterVisualEffect(definition);
+                var graphicsBuffersQuery = fixture.World.EntityManager.CreateEntityQuery(typeof(VFXGraphicsBuffersSingleton));
+                var graphicsBuffersObject = graphicsBuffersQuery.GetSingleton<VFXGraphicsBuffersSingleton>().Value.Value;
+                graphicsBuffersObject.InstantVFXGraphEntries = null;
+                graphicsBuffersObject.PersistentVFXGraphEntries = null;
+
+                hybridVisualEffect.Cleanup();
+
+                Assert.DoesNotThrow(() => fixture.CleanupVFXSystem.Update());
+                Assert.IsFalse(fixture.GetSingleton().ContainsInstant(definition));
+                Assert.IsNotNull(graphicsBuffersObject.InstantVFXGraphEntries);
+                Assert.IsNotNull(graphicsBuffersObject.PersistentVFXGraphEntries);
+            });
+        }
+
+        [UnityTest]
+        public IEnumerator DuplicateRegistration_WhenInitializationRunsAgain_LogsOnlyOnce()
+        {
+            yield return VFXPlayModeTestFixture.Run(fixture =>
+            {
+                var definition = fixture.CreateDefinition(22, VFXType.Instant);
+                fixture.CreateAndRegisterVisualEffect(definition, "Original VFX");
+
+                LogAssert.Expect(LogType.Error,
+                    "VFXKey(22) was already added to the VFX system. There cannot be duplicates.");
+                fixture.CreateAndRegisterVisualEffect(definition, "Duplicate VFX");
+
+                Assert.DoesNotThrow(() => fixture.World.GetExistingSystemManaged<InitializeVFXSystem>().Update());
+                LogAssert.NoUnexpectedReceived();
             });
         }
 

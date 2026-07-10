@@ -1,3 +1,8 @@
+## [1.1.1] - 2026-07-10
+
+### Fixed
+* Fix project build causing "key is duplicated" errors being spammed in the console and build failing.
+
 ## [1.1.0] - 2026-07-01
 
 ### Changed

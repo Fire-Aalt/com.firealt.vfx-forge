@@ -158,14 +158,7 @@ namespace FireAlt.VFXForge
 #if UNITY_EDITOR
             if (!Application.isPlaying)
             {
-                try
-                {
-                    World.GetExistingSystemManaged<CleanupVFXSystem>().Update();
-                }
-                catch
-                {
-                    // May fail during domain reload where we don't care
-                }
+                World.GetExistingSystemManaged<CleanupVFXSystem>()?.Update();
 
                 _trackedEntity = TrackedEntity.Null;
             }

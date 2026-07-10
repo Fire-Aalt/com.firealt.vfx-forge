@@ -36,6 +36,13 @@ namespace FireAlt.VFXForge
             ref var args = ref managedArgs.Second;
             
             var graphicsBuffersObject = args.GraphicsBuffersObject.Value;
+            if (graphicsBuffersObject == null)
+            {
+                args.StateChanges.Clear();
+                return;
+            }
+
+            graphicsBuffersObject.EnsureInitialized();
             
             foreach (var stateChange in args.StateChanges)
             {

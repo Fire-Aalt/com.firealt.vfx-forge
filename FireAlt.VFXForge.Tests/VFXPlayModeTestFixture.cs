@@ -40,6 +40,7 @@ namespace FireAlt.VFXForge.Tests
             SyncVFXSystem = World.CreateSystem<SyncVFXSystem>();
             VFXTransformSystem = World.CreateSystem<VFXTransformSystem>();
             World.CreateSystemManaged<InitializeVFXSystem>();
+            CleanupVFXSystem = World.CreateSystemManaged<CleanupVFXSystem>();
         }
 
         internal World World { get; }
@@ -47,6 +48,8 @@ namespace FireAlt.VFXForge.Tests
         internal SystemHandle SyncVFXSystem { get; }
 
         internal SystemHandle VFXTransformSystem { get; }
+
+        internal CleanupVFXSystem CleanupVFXSystem { get; }
 
         internal static IEnumerator Run(Action<VFXPlayModeTestFixture> test, string worldName = "VFX Forge Test World")
         {

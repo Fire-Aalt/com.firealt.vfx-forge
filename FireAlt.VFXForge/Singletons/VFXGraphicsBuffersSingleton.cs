@@ -19,15 +19,20 @@ namespace FireAlt.VFXForge
 
         public VFXGraphicsBuffersSingleton(int capacity)
         {
-            Value = ScriptableObject.CreateInstance<VFXGraphicsBuffersObject>();
-            Value.Value.InstantVFXGraphEntries = new Dictionary<VFXKey, InstantVFXGraphicsBuffers>(capacity);
-            Value.Value.PersistentVFXGraphEntries = new Dictionary<VFXKey, PersistentVFXGraphicsBuffers>(capacity);
+            var value = ScriptableObject.CreateInstance<VFXGraphicsBuffersObject>();
+            value.hideFlags = HideFlags.HideAndDontSave;
+            value.EnsureInitialized(capacity);
+            Value = value;
         }
         
         [BurstDiscard]
         public void Dispose()
         {
-            Value.Value.Dispose();
+            var value = Value.Value;
+            if (value != null)
+            {
+                value.Dispose();
+            }
         }
     }
 
@@ -35,17 +40,39 @@ namespace FireAlt.VFXForge
     {
         public Dictionary<VFXKey, InstantVFXGraphicsBuffers> InstantVFXGraphEntries;
         public Dictionary<VFXKey, PersistentVFXGraphicsBuffers> PersistentVFXGraphEntries;
+
+        internal void EnsureInitialized(int capacity = 0)
+        {
+            InstantVFXGraphEntries ??= new Dictionary<VFXKey, InstantVFXGraphicsBuffers>(capacity);
+            PersistentVFXGraphEntries ??= new Dictionary<VFXKey, PersistentVFXGraphicsBuffers>(capacity);
+        }
         
         public void Dispose()
         {
-            foreach (var pair in InstantVFXGraphEntries)
+            if (InstantVFXGraphEntries != null)
             {
-                pair.Value.Dispose();
+                foreach (var pair in InstantVFXGraphEntries)
+                {
+                    pair.Value.Dispose();
+                }
+
+                InstantVFXGraphEntries.Clear();
             }
-            foreach (var pair in PersistentVFXGraphEntries)
+
+            if (PersistentVFXGraphEntries != null)
             {
-                pair.Value.Dispose();
+                foreach (var pair in PersistentVFXGraphEntries)
+                {
+                    pair.Value.Dispose();
+                }
+
+                PersistentVFXGraphEntries.Clear();
             }
+        }
+
+        private void OnEnable()
+        {
+            EnsureInitialized();
         }
     }
 

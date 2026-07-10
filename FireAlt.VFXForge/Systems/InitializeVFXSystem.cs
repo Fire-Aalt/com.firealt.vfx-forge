@@ -23,8 +23,9 @@ namespace FireAlt.VFXForge
                 if (TryAddVFXEntry(ref vfxSingleton, hve, out var key))
                 {
                     registeredVFX.ValueRW.Key = key;
-                    initializeRW.ValueRW = false;
                 }
+
+                initializeRW.ValueRW = false;
             }
         }
         
