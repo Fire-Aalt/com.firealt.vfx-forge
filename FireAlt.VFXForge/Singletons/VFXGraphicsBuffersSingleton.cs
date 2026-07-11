@@ -38,8 +38,8 @@ namespace FireAlt.VFXForge
 
     public class VFXGraphicsBuffersObject : ScriptableObject, IDisposable
     {
-        public Dictionary<VFXKey, InstantVFXGraphicsBuffers> InstantVFXGraphEntries;
-        public Dictionary<VFXKey, PersistentVFXGraphicsBuffers> PersistentVFXGraphEntries;
+        [NonSerialized] public Dictionary<VFXKey, InstantVFXGraphicsBuffers> InstantVFXGraphEntries;
+        [NonSerialized] public Dictionary<VFXKey, PersistentVFXGraphicsBuffers> PersistentVFXGraphEntries;
 
         internal void EnsureInitialized(int capacity = 0)
         {
