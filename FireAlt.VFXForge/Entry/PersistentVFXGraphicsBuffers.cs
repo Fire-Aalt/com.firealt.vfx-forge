@@ -29,10 +29,10 @@ namespace FireAlt.VFXForge
         {
             var doubleCapacity = definition.capacity * 2;
             CreateGraphicsBuffer(ref _transformBuffer, VFXProperties.TransformBuffer, doubleCapacity, UnsafeUtility.SizeOf<VFXTransform>());
+            CreateGraphicsBuffer(ref _spawnIndexBuffer, VFXProperties.SpawnIndexBuffer, doubleCapacity, UnsafeUtility.SizeOf<VFXSpawnIndex>());
             
             if (definition.DataGpuSize != 0)
             {
-                CreateGraphicsBuffer(ref _spawnIndexBuffer, VFXProperties.SpawnIndexBuffer, doubleCapacity, UnsafeUtility.SizeOf<VFXSpawnIndex>());
                 CreateGraphicsBuffer(ref _dataBuffer, VFXProperties.DataBuffer, doubleCapacity, definition.DataGpuSize);
             }
             if (definition.ArrayDataGpuSize != 0)
@@ -46,14 +46,14 @@ namespace FireAlt.VFXForge
         protected override void CheckHasSharedBuffers()
         {
             CheckHasBuffer(VFXProperties.TransformBuffer);
-        }
-        
-        protected override void CheckHasDataBuffers()
-        {
             if (ArrayDataGpuSize == 0)
             {
                 CheckHasBuffer(VFXProperties.SpawnIndexBuffer);
             }
+        }
+        
+        protected override void CheckHasDataBuffers()
+        {
             CheckHasBuffer(VFXProperties.DataBuffer);
         }
 

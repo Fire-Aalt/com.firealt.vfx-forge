@@ -25,6 +25,31 @@ namespace FireAlt.VFXForge.Tests
         }
 
         [UnityTest]
+        public IEnumerator SpawnWithoutPayload_WhenResolved_PublishesDistinctSpawnIndices()
+        {
+            yield return VFXPlayModeTestFixture.Run(fixture =>
+            {
+                var definition = fixture.CreateDefinition(41, VFXType.Persistent, capacity: 2);
+                fixture.CreateAndRegisterVisualEffect(definition);
+                var singleton = fixture.GetSingleton();
+                ref var entry = ref singleton.GetPersistent(definition);
+                var internalApi = singleton.AsInternal();
+
+                var first = internalApi.SpawnPersistent(
+                    ref entry, TrackedEntity.FromEntity(Entity.Null), default, 0f);
+                var second = internalApi.SpawnPersistent(
+                    ref entry, TrackedEntity.FromEntity(Entity.Null), default, 0f);
+
+                Assert.IsTrue(entry.SpawnIndexBuffer.IsCreated);
+                Assert.That(entry.SpawnIndexBuffer.Length, Is.EqualTo(2));
+                Assert.That(entry.SpawnIndexBuffer[0].IndexInData, Is.EqualTo((uint)first.IndexInData));
+                Assert.That(entry.SpawnIndexBuffer[1].IndexInData, Is.EqualTo((uint)second.IndexInData));
+                Assert.That(entry.SpawnIndexBuffer[0].IndexInData,
+                    Is.Not.EqualTo(entry.SpawnIndexBuffer[1].IndexInData));
+            });
+        }
+
+        [UnityTest]
         public IEnumerator Spawn_WhenCapacityExceeded_ReturnsInvalidEntity()
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>

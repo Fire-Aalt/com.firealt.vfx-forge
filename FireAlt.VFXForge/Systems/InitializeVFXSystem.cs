@@ -81,11 +81,11 @@ namespace FireAlt.VFXForge
                     ResolvedToRequestMap = new UnsafeHashMap<TrackedEntity, TrackedEntity>(32, Allocator.Persistent),
                     DeferredToResolvedMap = new UnsafeHashMap<TrackedEntity, TrackedEntity>(32, Allocator.Persistent),
                     DeferredTransformBuffer = new UnsafeArray<VFXTransform>(definition.capacity, Allocator.Persistent),
+                    SpawnIndexBuffer = new UnsafeList<VFXSpawnIndex>(doubleCapacity, Allocator.Persistent)
                 };
                 
                 if (entry.DataSizeInBytes > 0)
                 {
-                    entry.SpawnIndexBuffer = new UnsafeList<VFXSpawnIndex>(doubleCapacity, Allocator.Persistent);
                     entry.DataBuffer = new UnsafeArray<byte>(doubleCapacity * definition.DataGpuSize, Allocator.Persistent);
                     entry.DeferredDataBuffer = new UnsafeArray<byte>(definition.capacity * definition.DataGpuSize, Allocator.Persistent);
                 }
