@@ -1,3 +1,8 @@
+## [1.2.1] - 2026-08-09
+
+### Fixed
+* Restore stale VFX Graph component-board state when inspecting HybridVisualEffect after a domain reload.
+
 ## [1.2.0] - 2026-08-09
 
 ### Changed

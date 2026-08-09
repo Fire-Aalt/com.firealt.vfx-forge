@@ -16,8 +16,10 @@ namespace UnityEditor.VFX.UI
         private const string INSPECTION_TRACKER_FULL_NAME = "FireAlt.VFXForge.Editor.HybridVisualEffectInspectionTracker";
         private const string InspectionTrackerTypeName = INSPECTION_TRACKER_FULL_NAME + ", FireAlt.VFXForge.Editor";
         private const string ON_HIERARCHY_SELECTION_CHANGED_METHOD_NAME = "OnHierarchySelectionChanged";
+        private const string BOUNDS_RECORDER_FIELD_NAME = "m_BoundsRecorder";
         private static readonly object PatchMarker = new();
         private static readonly FieldInfo DebugUIField = typeof(VFXComponentBoard).GetField("m_DebugUI", BindingFlags.Instance | BindingFlags.NonPublic);
+        private static readonly FieldInfo BoundsRecorderField = typeof(VFXComponentBoard).GetField(BOUNDS_RECORDER_FIELD_NAME, BindingFlags.Instance | BindingFlags.NonPublic);
 
         private static Type s_HybridVisualEffectType;
         private static Type s_InspectionTrackerType;
@@ -117,7 +119,14 @@ namespace UnityEditor.VFX.UI
 
                 if (graphView.attachedComponent == visualEffect)
                 {
-                    continue;
+                    var board = graphView.Q<VFXComponentBoard>();
+                    if (board == null || BoundsRecorderField == null || BoundsRecorderField.GetValue(board) != null)
+                    {
+                        continue;
+                    }
+
+                    // Domain reload can retain the attachment while losing the board's non-serialized recorder.
+                    graphView.attachedComponent = null;
                 }
 
                 graphView.attachedComponent = visualEffect;
