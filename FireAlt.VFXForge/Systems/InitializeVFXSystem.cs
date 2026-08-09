@@ -3,6 +3,7 @@ using FireAlt.Core.Collections;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
 
 namespace FireAlt.VFXForge
@@ -43,6 +44,8 @@ namespace FireAlt.VFXForge
             
             if (!definition.IsPersistent)
             {
+                var perThreadCapacity = (definition.InitialCapacity + JobsUtility.ThreadIndexCount - 1) /
+                                        JobsUtility.ThreadIndexCount;
                 var entry = new InstantVFXEntry(hybridVisualEffect)
                 {
                     PendingRequestsCount = new UnsafeThreadData<InstantVFXEntry.Requests>(Allocator.Persistent),
@@ -50,13 +53,16 @@ namespace FireAlt.VFXForge
                 
                 if (entry.DataSizeInBytes > 0)
                 {
-                    entry.DataBuffer = new UnsafeThreadToListMapper<byte>(256, Allocator.Persistent);
+                    entry.DataBuffer = new UnsafeThreadToListMapper<byte>(perThreadCapacity * entry.DataSizeInBytes,
+                        Allocator.Persistent);
                 }
                 if (entry.ArrayDataSizeInBytes > 0)
                 {
-                    entry.ArrayDataBuffer = new UnsafeThreadToListMapper<byte>(256, Allocator.Persistent);
-                    entry.ArrayPtrBuffer = new UnsafeThreadToListMapper<VFXArrayPtr>(64, Allocator.Persistent);
-                    entry.ArraySpawnIndexBuffer = new UnsafeThreadToListMapper<VFXArraySpawnIndex>(64, Allocator.Persistent);
+                    entry.ArrayDataBuffer = new UnsafeThreadToListMapper<byte>(perThreadCapacity * entry.ArrayDataSizeInBytes,
+                        Allocator.Persistent);
+                    entry.ArrayPtrBuffer = new UnsafeThreadToListMapper<VFXArrayPtr>(perThreadCapacity, Allocator.Persistent);
+                    entry.ArraySpawnIndexBuffer = new UnsafeThreadToListMapper<VFXArraySpawnIndex>(perThreadCapacity,
+                        Allocator.Persistent);
                 }
                 
                 vfxSingleton.InstantVFXGraphEntries.Add(key, entry);
@@ -65,36 +71,52 @@ namespace FireAlt.VFXForge
             {
                 // We allocate twice the specified user capacity as the data lives for multiple frames
                 // and destruction can create holes that have to exist when publishing the buffer to GPU
-                var doubleCapacity = definition.capacity * 2;
+                var initialCapacity = definition.InitialCapacity;
+                var doubleCapacity = initialCapacity * 2;
+                var perThreadCapacity = (initialCapacity + JobsUtility.ThreadIndexCount - 1) /
+                                        JobsUtility.ThreadIndexCount;
                 
                 var entry = new PersistentVFXEntry(hybridVisualEffect)
                 {
-                    Capacity = definition.capacity,
-                    TransformBuffer = new UnsafeArray<VFXTransform>(doubleCapacity, Allocator.Persistent),
+                    Capacity = initialCapacity,
+                    UseMaxCapacity = definition.useMaxCapacity,
+                    MaxCapacity = definition.MaxCapacity,
                     AliveMask = new UnsafeBitMaskRange(doubleCapacity, Allocator.Persistent),
                     TrackedEntities = new UnsafeHashSet<TrackedEntity>(doubleCapacity, Allocator.Persistent),
                     TrackedEntityIds = new UnsafeHashSet<TrackedEntity>(doubleCapacity, Allocator.Persistent),
                     EntityIdFrameData = new UnsafeList<EntityIdData>(32, Allocator.Persistent),
-                    SpawnRequests = new UnsafeThreadList<TrackedEntity>(32, Allocator.Persistent),
-                    SpawnEntityIdRequests = new UnsafeThreadList<TrackedEntity>(8, Allocator.Persistent),
+                    SpawnRequests = new UnsafeThreadList<PersistentVFXDeferredRequest>(perThreadCapacity, Allocator.Persistent),
+                    SpawnDataBuffer = new UnsafeThreadList<byte>(perThreadCapacity * definition.DataGpuSize, Allocator.Persistent),
                     KillRequests = new UnsafeThreadList<TrackedEntity>(32, Allocator.Persistent),
                     ResolvedToRequestMap = new UnsafeHashMap<TrackedEntity, TrackedEntity>(32, Allocator.Persistent),
                     DeferredToResolvedMap = new UnsafeHashMap<TrackedEntity, TrackedEntity>(32, Allocator.Persistent),
-                    DeferredTransformBuffer = new UnsafeArray<VFXTransform>(definition.capacity, Allocator.Persistent),
-                    SpawnIndexBuffer = new UnsafeList<VFXSpawnIndex>(doubleCapacity, Allocator.Persistent)
                 };
+
+                if (entry.DataSizeInBytes > 0 || entry.ArrayDataSizeInBytes == 0)
+                {
+                    entry.SpawnIndexBuffer = new UnsafeList<VFXSpawnIndex>(doubleCapacity, Allocator.Persistent);
+                }
+
+                if (doubleCapacity > 0)
+                {
+                    entry.TransformBuffer = new UnsafeArray<VFXTransform>(doubleCapacity, Allocator.Persistent);
+                }
                 
                 if (entry.DataSizeInBytes > 0)
                 {
-                    entry.DataBuffer = new UnsafeArray<byte>(doubleCapacity * definition.DataGpuSize, Allocator.Persistent);
-                    entry.DeferredDataBuffer = new UnsafeArray<byte>(definition.capacity * definition.DataGpuSize, Allocator.Persistent);
+                    if (doubleCapacity > 0)
+                    {
+                        entry.DataBuffer = new UnsafeArray<byte>(doubleCapacity * definition.DataGpuSize, Allocator.Persistent);
+                    }
                 }
                 if (entry.ArrayDataSizeInBytes > 0)
                 {
-                    entry.ArraySpawnIndexBuffer = new UnsafeList<VFXArraySpawnIndex>(definition.capacity, Allocator.Persistent);
+                    entry.ArraySpawnIndexBuffer = new UnsafeList<VFXArraySpawnIndex>(initialCapacity, Allocator.Persistent);
                     entry.ArrayDataMemoryBuffer = new UnsafeHeapMemory(definition.ArrayDataGpuSize, doubleCapacity, Allocator.Persistent);
-                    entry.ArrayPtrBuffer = new UnsafeArray<VFXArrayPtr>(doubleCapacity, Allocator.Persistent);
-                    entry.DeferredArrayDataBuffer = new UnsafeArray<PooledUnsafeArray<byte>>(definition.capacity, Allocator.Persistent);
+                    if (doubleCapacity > 0)
+                    {
+                        entry.ArrayPtrBuffer = new UnsafeArray<VFXArrayPtr>(doubleCapacity, Allocator.Persistent);
+                    }
                 }
 
                 // FreeIndices queue also uses doubleCapacity because we still need the indices looping

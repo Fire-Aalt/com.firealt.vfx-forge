@@ -15,9 +15,12 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(100, VFXType.Persistent, capacity: 4);
+                var definition = fixture.CreateDefinition(100, VFXType.Persistent, initialCapacity: 0,
+                    useMaxCapacity: true, maxCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
+                var expectedPosition = new Vector3(-3f, 1.25f, -8.5f);
+                gameObject.transform.position = expectedPosition;
                 var entity = fixture.CreateTrackedEntity();
 
                 var gameObjectTrackedEntity = fixture.SpawnPersistent(definition, gameObject.GetEntityId(), trackingDuration: 1.25f);
@@ -28,6 +31,11 @@ namespace FireAlt.VFXForge.Tests
                 Assert.IsTrue(entityTrackedEntity.IsValid);
                 Assert.IsTrue(fixture.IsPersistentAlive(definition, gameObjectTrackedEntity));
                 Assert.IsTrue(fixture.IsPersistentAlive(definition, entityTrackedEntity));
+
+                var singleton = fixture.GetSingleton();
+                ref var entry = ref singleton.GetPersistent(definition);
+                Assert.That(entry.TransformBuffer[gameObjectTrackedEntity.IndexInData].Position,
+                    Is.EqualTo(expectedPosition));
             });
         }
 
@@ -36,7 +44,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(110, VFXType.Persistent, capacity: 3);
+                var definition = fixture.CreateDefinition(110, VFXType.Persistent, initialCapacity: 3);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var first = fixture.CreateTrackedGameObject("First Tracked GameObject");
                 var second = fixture.CreateTrackedGameObject("Second Tracked GameObject");
@@ -55,8 +63,8 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var firstDefinition = fixture.CreateDefinition(120, VFXType.Persistent, capacity: 2);
-                var secondDefinition = fixture.CreateDefinition(121, VFXType.Persistent, capacity: 2);
+                var firstDefinition = fixture.CreateDefinition(120, VFXType.Persistent, initialCapacity: 2);
+                var secondDefinition = fixture.CreateDefinition(121, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(firstDefinition, "First Key VFX");
                 fixture.CreateAndRegisterVisualEffect(secondDefinition, "Second Key VFX");
                 var first = fixture.CreateTrackedGameObject("First Key Tracked GameObject");
@@ -76,8 +84,10 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var gameObjectDefinition = fixture.CreateDefinition(130, VFXType.Persistent, capacity: 1);
-                var entityDefinition = fixture.CreateDefinition(131, VFXType.Persistent, capacity: 1);
+                var gameObjectDefinition = fixture.CreateDefinition(130, VFXType.Persistent, initialCapacity: 1,
+                    useMaxCapacity: true, maxCapacity: 1);
+                var entityDefinition = fixture.CreateDefinition(131, VFXType.Persistent, initialCapacity: 1,
+                    useMaxCapacity: true, maxCapacity: 1);
                 fixture.CreateAndRegisterVisualEffect(gameObjectDefinition, "GameObject Capacity VFX");
                 fixture.CreateAndRegisterVisualEffect(entityDefinition, "Entity Capacity VFX");
                 var firstGameObject = fixture.CreateTrackedGameObject("First Capacity GameObject");
@@ -102,7 +112,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(140, VFXType.Persistent, capacity: 4);
+                var definition = fixture.CreateDefinition(140, VFXType.Persistent, initialCapacity: 4);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();
@@ -125,7 +135,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(150, VFXType.Persistent, capacity: 4);
+                var definition = fixture.CreateDefinition(150, VFXType.Persistent, initialCapacity: 4);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();
@@ -147,7 +157,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(160, VFXType.Persistent, capacity: 4);
+                var definition = fixture.CreateDefinition(160, VFXType.Persistent, initialCapacity: 4);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();
@@ -168,7 +178,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(165, VFXType.Persistent, capacity: 4);
+                var definition = fixture.CreateDefinition(165, VFXType.Persistent, initialCapacity: 4);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var trackedEntity = fixture.SpawnPersistent(definition, gameObject.GetEntityId());
@@ -188,7 +198,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(170, VFXType.Persistent, capacity: 4, hasData: true);
+                var definition = fixture.CreateDefinition(170, VFXType.Persistent, initialCapacity: 4, hasData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();
@@ -213,7 +223,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(180, VFXType.Persistent, capacity: 4, hasArrayData: true);
+                var definition = fixture.CreateDefinition(180, VFXType.Persistent, initialCapacity: 4, hasArrayData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();
@@ -238,7 +248,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(190, VFXType.Persistent, capacity: 4, hasData: true, hasArrayData: true);
+                var definition = fixture.CreateDefinition(190, VFXType.Persistent, initialCapacity: 4, hasData: true, hasArrayData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();
@@ -267,7 +277,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(200, VFXType.Persistent, capacity: 4, hasData: true, hasArrayData: true);
+                var definition = fixture.CreateDefinition(200, VFXType.Persistent, initialCapacity: 4, hasData: true, hasArrayData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();
@@ -296,7 +306,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(210, VFXType.Persistent, capacity: 4, hasArrayData: true);
+                var definition = fixture.CreateDefinition(210, VFXType.Persistent, initialCapacity: 4, hasArrayData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var gameObject = fixture.CreateTrackedGameObject();
                 var entity = fixture.CreateTrackedEntity();

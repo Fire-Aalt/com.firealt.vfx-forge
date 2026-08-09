@@ -224,16 +224,16 @@ namespace FireAlt.VFXForge
             {
                 var internalApi = VFXSingleton.AsInternal();
                 ref var entry = ref VFXSingleton.GetPersistent(KeysArray[index]);
-                
-                SpawnPersistentRequests(ref entry, ref entry.SpawnRequests, internalApi);
-                SpawnPersistentRequests(ref entry, ref entry.SpawnEntityIdRequests, internalApi);
+
+                entry.EnsureCapacity(entry.UsedCapacity + entry.SpawnRequests.Length);
+                SpawnPersistentRequests(ref entry, internalApi);
                 // Kill is after spawn, so that the indices will be reused with 1 frame delay for the VFX to react
                 KillPersistentRequests(ref entry, internalApi, out var deadRange);
                 
                 entry.SpawnRequests.Clear();
-                entry.SpawnEntityIdRequests.Clear();
+                entry.SpawnDataBuffer.Clear();
                 entry.KillRequests.Clear();
-                entry.NextIndex = 0;
+                entry.CapacityReservations = 0;
                 entry.UsedCapacity = entry.TrackedEntityIds.Count + entry.TrackedEntities.Count;
 
                 entry.DataUploadRange = deadRange;
@@ -249,40 +249,47 @@ namespace FireAlt.VFXForge
                 }
             }
             
-            private static unsafe void SpawnPersistentRequests(ref PersistentVFXEntry entry, ref UnsafeThreadList<TrackedEntity> spawnRequests,
+            private static unsafe void SpawnPersistentRequests(ref PersistentVFXEntry entry,
                 VFXSingleton.InternalAPI internalApi)
             {
-                foreach (var deferredKey in spawnRequests)
+                for (var threadIndex = 0; threadIndex < JobsUtility.ThreadIndexCount; threadIndex++)
                 {
-                    using var pooledArrayData = TakeDeferredArrayData(ref entry, deferredKey);
-                    
-                    var deferredTransform = entry.DeferredTransformBuffer[deferredKey.IndexInData];
-                    if (!deferredTransform.DidTransformSystemRun())
+                    ref var requests = ref entry.SpawnRequests.GetUnsafeList(threadIndex);
+                    ref var data = ref entry.SpawnDataBuffer.GetUnsafeList(threadIndex);
+                    for (var localIndex = 0; localIndex < requests.Length; localIndex++)
                     {
-                        throw new Exception($"A persistent VFXKey({entry.VFXKey.Value}) spawn was requested between `VFXTransformSystem` and `SyncVFXSystem` which means the upload data does not carry Transform information. Do not spawn persistent VFX in `LateUpdate`.");
-                    }
-                    if (!deferredTransform.IsAlive())
-                    {
-                        continue;
-                    }
+                        ref var request = ref requests.ElementAt(localIndex);
+                        var deferredKey = request.TrackedEntity;
+                        using var pooledArrayData = TakeDeferredArrayData(ref request);
+                        var deferredTransform = request.Transform;
+                        if (!deferredTransform.DidTransformSystemRun())
+                        {
+                            throw new Exception($"A persistent VFXKey({entry.VFXKey.Value}) spawn was requested between `VFXTransformSystem` and `SyncVFXSystem` which means the upload data does not carry Transform information. Do not spawn persistent VFX in `LateUpdate`.");
+                        }
+                        if (!deferredTransform.IsAlive())
+                        {
+                            continue;
+                        }
 
-                    TrackedEntity resolvedKey;
-                    
-                    if (entry.DeferredDataBuffer.IsCreated)
-                    {
-                        var ptr = (byte*)entry.DeferredDataBuffer.GetUnsafePtr() + deferredKey.IndexInData * entry.DataSizeInBytes;
-                        resolvedKey = internalApi.SpawnPersistentUnsafe(ref entry, deferredKey, ptr, pooledArrayData.Array, deferredTransform.TrackingDuration);
-                    }
-                    else
-                    {
-                        resolvedKey = internalApi.SpawnPersistent(ref entry, deferredKey, pooledArrayData.Array, deferredTransform.TrackingDuration);
-                    }
+                        TrackedEntity resolvedKey;
+                        if (entry.DataSizeInBytes > 0)
+                        {
+                            var ptr = (byte*)data.Ptr + localIndex * entry.DataSizeInBytes;
+                            resolvedKey = internalApi.SpawnPersistentUnsafe(ref entry, deferredKey, ptr,
+                                pooledArrayData.Array, deferredTransform.TrackingDuration);
+                        }
+                        else
+                        {
+                            resolvedKey = internalApi.SpawnPersistent(ref entry, deferredKey, pooledArrayData.Array,
+                                deferredTransform.TrackingDuration);
+                        }
 
-                    if (!resolvedKey.IsValid) continue;
+                        if (!resolvedKey.IsValid) continue;
 
-                    entry.TransformBuffer[resolvedKey.IndexInData] = deferredTransform;
-                    entry.DeferredToResolvedMap.Add(deferredKey, resolvedKey);
-                    entry.ResolvedToRequestMap.Add(resolvedKey, deferredKey);
+                        entry.TransformBuffer[resolvedKey.IndexInData] = deferredTransform;
+                        entry.DeferredToResolvedMap.Add(deferredKey, resolvedKey);
+                        entry.ResolvedToRequestMap.Add(resolvedKey, deferredKey);
+                    }
                 }
             }
             
@@ -297,16 +304,10 @@ namespace FireAlt.VFXForge
                 }
             }
             
-            private static PooledUnsafeArray<byte> TakeDeferredArrayData(ref PersistentVFXEntry entry, TrackedEntity deferredKey)
+            private static PooledUnsafeArray<byte> TakeDeferredArrayData(ref PersistentVFXDeferredRequest request)
             {
-                if (!entry.DeferredArrayDataBuffer.IsCreated)
-                {
-                    return default;
-                }
-
-                ref var pooledArray = ref entry.DeferredArrayDataBuffer.ElementAt(deferredKey.IndexInData);
-                var taken = pooledArray;
-                pooledArray = default;
+                var taken = request.ArrayData;
+                request.ArrayData = default;
                 return taken;
             }
         }

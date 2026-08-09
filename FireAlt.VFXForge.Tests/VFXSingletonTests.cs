@@ -65,7 +65,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(20, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(20, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var singleton = fixture.GetSingleton();
 
@@ -174,7 +174,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(31, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(31, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var singleton = fixture.GetSingleton();
 

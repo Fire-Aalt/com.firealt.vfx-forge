@@ -41,7 +41,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(85, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(85, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var trackedEntity = fixture.SpawnPersistent(definition, Entity.Null);
 

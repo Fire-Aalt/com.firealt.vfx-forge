@@ -12,7 +12,7 @@ VFX Forge supports both a default decal definition and custom decal definitions.
 
 The default decal definition is configured in `Preferences/FireAlt/VFX Forge`. Use it when most decals should share the same graph setup and material behavior.
 
-Create your own `VFXDecalDefinition` when a decal set needs a different VFX Graph, capacity, timeout, payload type, or graph behavior. Select the decal VFX Graph asset and run `FireAlt/Create VFX Decal Definitions from VFX Assets` on the main toolbar.
+Create your own `VFXDecalDefinition` when a decal set needs a different VFX Graph, initial or optional maximum capacity, timeout, payload type, or graph behavior. Select the decal VFX Graph asset and run `FireAlt/Create VFX Decal Definitions from VFX Assets` on the main toolbar.
 
 `VFXDecalDefinition` assets are persistent graph templates for decals. Runtime decal definitions are produced from the template and the sprite lookup data used by `VFXDecalProjector`.
 

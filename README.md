@@ -75,7 +75,8 @@ For full API breakdown and examples, see [Instant VFX](Documentation~/InstantVFX
 
 ## Persistent VFX
 
-Long-lived VFX with explicit Spawn/Update/Kill API, optional tracked Entity/GameObject transform data support, but fixed capacity. Useful for controlled persistent VFXs, like fire, gameplay abilities, status effects and other.
+Long-lived VFX with explicit Spawn/Update/Kill API and optional tracked Entity/GameObject transform data support. 
+Forge storage grows elastically from the definition's Initial Capacity unless an optional Max Capacity is enabled.
 
 For full API breakdown and examples, see [Persistent VFX](Documentation~/PersistentVFX.md).
 
@@ -127,9 +128,9 @@ There is no easy way to check this from VFX Forge perspective, and so regular pa
 
 ## Memory Management
 
-Instant request buffers are reused and cleared after upload.
+Instant request buffers are reused and cleared after upload. Initial Capacity defines their startikng allocation, optional Max Capacity limits accepted logical spawn calls between sync updates.
 
-Persistent buffers live for the registered definition lifetime and are capacity-based. 
+Persistent CPU buffers grow geometrically from Initial Capacity and retain their allocation for the registered definition lifetime. Optional Max Capacity limits active plus accepted pending handles.
 Persistent array payloads are copied into pooled deferred unsafe arrays first, then moved into `UnsafeHeapMemory` when the request resolves, similar to how `memory.alloc` works.
 
 VFX Forge deallocates all GPU memory for VFXs, which were unused for a specified duration. 
@@ -147,7 +148,7 @@ VFX Forge is designed around batched uploads and stable backing storage, using E
 
 Tradeoffs:
 
-- Persistent definitions allocate buffers based on capacity, including double-capacity backing storage for transform/data holes and delayed reuse.
+- Persistent growth reallocates double-capacity CPU/GPU backing storage. Existing resolved indices remain stable.
 - Array payloads are copied on spawn.
 - Prefer fewer batched definitions over many unique graph definitions when spawn counts are high.
 
@@ -155,7 +156,8 @@ Tradeoffs:
 
 - Do not register two `HybridVisualEffect` instances with the same `VFXDefinition` key.
 - Do not spawn persistent VFX in `LateUpdate` or any path that runs after `VFXTransformSystem` but before `SyncVFXSystem`.
-- Do not assume a persistent spawn always succeeds; check `TrackedEntity.IsValid` if relevant.
+- Do not assume a capped spawn succeeds: check `TrackedEntity.IsValid` for Persistent VFX and the boolean return value for Instant VFX.
+- Forge buffer growth does not change the VFX Graph system's authored particle capacity. VFX Graph discards overspawn beyond that independent compiled ceiling.
 - Do not mismatch definition payload type and generic `Spawn<T>` or `TrySetUpdateData<T>` calls.
 
 ## Samples

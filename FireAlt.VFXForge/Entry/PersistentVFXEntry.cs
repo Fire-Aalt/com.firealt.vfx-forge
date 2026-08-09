@@ -1,5 +1,4 @@
 using System;
-using System.Threading;
 using FireAlt.VFXForge.Data;
 using FireAlt.Core;
 using FireAlt.Core.Collections;
@@ -10,10 +9,18 @@ using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
 using Unity.Jobs.LowLevel.Unsafe;
+using Unity.Mathematics;
 using UnityEngine;
 
 namespace FireAlt.VFXForge
 {
+    internal struct PersistentVFXDeferredRequest
+    {
+        public TrackedEntity TrackedEntity;
+        public VFXTransform Transform;
+        public PooledUnsafeArray<byte> ArrayData;
+    }
+
     /// <summary>
     /// Entry point for spawning, updating, and killing persistent VFX instances for one registered VFX definition.
     /// </summary>
@@ -51,10 +58,13 @@ namespace FireAlt.VFXForge
         
         internal int Capacity;
         internal int UsedCapacity;
+        internal bool UseMaxCapacity;
+        internal int MaxCapacity;
+        internal int CapacityReservations;
         internal UploadRange DataUploadRange;
         internal UploadRange ArrayDataUploadRange;
         
-        internal UnsafeThreadToListMapper<byte> SpawnDataBuffer;
+        internal UnsafeThreadList<byte> SpawnDataBuffer;
         
         internal UnsafeList<VFXSpawnIndex> SpawnIndexBuffer;
         internal UnsafeList<VFXArraySpawnIndex> ArraySpawnIndexBuffer;
@@ -69,13 +79,7 @@ namespace FireAlt.VFXForge
 
         internal UnsafeList<EntityIdData> EntityIdFrameData; // TODO: Remove with Unity 6.7
         
-        internal int NextIndex;
-        internal UnsafeArray<VFXTransform> DeferredTransformBuffer;
-        internal UnsafeArray<byte> DeferredDataBuffer;
-        internal UnsafeArray<PooledUnsafeArray<byte>> DeferredArrayDataBuffer;
-        
-        internal UnsafeThreadList<TrackedEntity> SpawnRequests;
-        internal UnsafeThreadList<TrackedEntity> SpawnEntityIdRequests; // TODO: Remove with Unity 6.7
+        internal UnsafeThreadList<PersistentVFXDeferredRequest> SpawnRequests;
         internal UnsafeThreadList<TrackedEntity> KillRequests;
 
         internal UnsafeHashMap<TrackedEntity, TrackedEntity> DeferredToResolvedMap;
@@ -94,7 +98,7 @@ namespace FireAlt.VFXForge
         /// <summary>
         /// Gets a value indicating whether this entry has spawn requests waiting for the sync system.
         /// </summary>
-        public bool HasPendingRequests => NextIndex > 0;
+        public bool HasPendingRequests => SpawnRequests.Length > 0;
         
         internal void ResetRequestsCount()
         {
@@ -143,29 +147,34 @@ namespace FireAlt.VFXForge
         private TrackedEntity Spawn(TrackedEntity trackedEntity, float trackingDuration)
         {
             Assert.IsTrue(trackingDuration >= 0f);
-            var nextIndex = Interlocked.Increment(ref NextIndex);
-            
-            if (nextIndex > Capacity - UsedCapacity) 
+            if (!Common.TryReserveCapacity(UseMaxCapacity, MaxCapacity, UsedCapacity, ref CapacityReservations))
+            {
                 return trackedEntity;
-            
-            trackedEntity.IndexInData = nextIndex - 1;
+            }
+
+            var threadIndex = JobsUtility.ThreadIndex;
+            ref var requests = ref SpawnRequests.GetUnsafeList(threadIndex);
+            var localIndex = requests.Length;
+
+            trackedEntity.IndexInData = EncodeDeferredIndex(threadIndex, localIndex);
             trackedEntity.PackedData.SetIsDeferred(true);
             trackedEntity.PackedData.SetSystemVersion(SyncVFXSystem.SystemVersion);
 
             VFXTransform transformData = default;
             transformData.SetAlive(true);
             transformData.TrackingDuration = trackingDuration;
-            DeferredTransformBuffer[trackedEntity.IndexInData] = transformData;
+            requests.Add(new PersistentVFXDeferredRequest
+            {
+                TrackedEntity = trackedEntity,
+                Transform = transformData,
+            });
 
-            if (trackedEntity.IsEntityId)
+            if (DataSizeInBytes > 0)
             {
-                SpawnEntityIdRequests.GetUnsafeList(JobsUtility.ThreadIndex).Add(trackedEntity);
+                ref var data = ref SpawnDataBuffer.GetUnsafeList(threadIndex);
+                data.Resize((localIndex + 1) * DataSizeInBytes, NativeArrayOptions.ClearMemory);
             }
-            else
-            {
-                SpawnRequests.GetUnsafeList(JobsUtility.ThreadIndex).Add(trackedEntity);
-            }
-            
+
             return trackedEntity;
         }
 
@@ -249,7 +258,7 @@ namespace FireAlt.VFXForge
             var trackedEntity = Spawn(entityToTrack, trackingDuration);
             if (!trackedEntity.IsValid) return trackedEntity;
             
-            DeferredDataBuffer.SetData(trackedEntity.IndexInData, data);
+            SetDeferredData(trackedEntity, data);
             return trackedEntity;
         }
 
@@ -302,7 +311,7 @@ namespace FireAlt.VFXForge
             if (!trackedEntity.IsValid) return trackedEntity;
             
             SetArray(trackedEntity, arrayData);
-            DeferredDataBuffer.SetData(trackedEntity.IndexInData, data);
+            SetDeferredData(trackedEntity, data);
             return trackedEntity;
         }
 
@@ -343,7 +352,7 @@ namespace FireAlt.VFXForge
             {
                 SetArray(trackedEntity, arrayData);
             }
-            DeferredDataBuffer.SetDataUnsafe(trackedEntity.IndexInData, data, DataSizeInBytes);
+            SetDeferredDataUnsafe(trackedEntity, data);
             return trackedEntity;
         }
 
@@ -407,7 +416,7 @@ namespace FireAlt.VFXForge
             if (TryResolveDataIndex(trackedEntity, out var index, out var isDeferred))
             {
                 dataRef = isDeferred
-                    ? new Ref<T>(ref DeferredDataBuffer.GetDataAsRef<T>(index))
+                    ? new Ref<T>(ref GetDeferredDataAsRef<T>(trackedEntity))
                     : new Ref<T>(ref DataBuffer.GetDataAsRef<T>(index));
                 return true;
             }
@@ -432,7 +441,7 @@ namespace FireAlt.VFXForge
             if (TryResolveDataIndex(trackedEntity, out var index, out var isDeferred))
             {
                 array = isDeferred 
-                    ? DeferredArrayDataBuffer[index].Array.Reinterpret<U>(UnsafeUtility.SizeOf<byte>()) 
+                    ? GetDeferredRequest(trackedEntity).ArrayData.Array.Reinterpret<U>(UnsafeUtility.SizeOf<byte>()) 
                     : ArrayDataMemoryBuffer.ArrayAt<U>(ArrayPtrBuffer[index]);
                 return true;
             }
@@ -452,7 +461,7 @@ namespace FireAlt.VFXForge
             {
                 if (isDeferred)
                 {
-                    array = DeferredArrayDataBuffer[index].Array;
+                    array = GetDeferredRequest(trackedEntity).ArrayData.Array;
                     return true;
                 }
 
@@ -484,7 +493,7 @@ namespace FireAlt.VFXForge
             {
                 if (isDeferred)
                 {
-                    DeferredDataBuffer.SetData(index, updateData);
+                    SetDeferredData(trackedEntity, updateData);
                 }
                 else
                 {
@@ -509,7 +518,7 @@ namespace FireAlt.VFXForge
             {
                 if (isDeferred)
                 {
-                    DeferredDataBuffer.SetDataUnsafe(index, updateData, DataSizeInBytes);
+                    SetDeferredDataUnsafe(trackedEntity, updateData);
                 }
                 else
                 {
@@ -533,7 +542,7 @@ namespace FireAlt.VFXForge
             {
                 if (isDeferred)
                 {
-                    DeferredTransformBuffer.ElementAt(resolved.IndexInData).Kill();
+                    GetDeferredRequest(resolved).Transform.Kill();
                 }
                 else
                 {
@@ -554,7 +563,7 @@ namespace FireAlt.VFXForge
             var byteArray = UnsafeArrayPool<byte>.Rent(size);
             UnsafeUtility.MemCpy(byteArray.Array.GetUnsafePtr(), arrayData.GetUnsafeReadOnlyPtr(), size);
             
-            DeferredArrayDataBuffer[trackedEntity.IndexInData] = byteArray;
+            GetDeferredRequest(trackedEntity).ArrayData = byteArray;
         }
         
         private bool TryResolveCheckIndex(TrackedEntity trackedEntity, out TrackedEntity resolvedKey, out bool isDeferred)
@@ -568,8 +577,8 @@ namespace FireAlt.VFXForge
 
             if (trackedEntity.IsDeferred(SyncVFXSystem.SystemVersion))
             {
-                var index = trackedEntity.IndexInData;
-                Assert.IsTrue(index >= 0 && index < Capacity);
+                DecodeDeferredIndex(trackedEntity.IndexInData, out var threadIndex, out var localIndex);
+                Assert.IsTrue(localIndex >= 0 && localIndex < SpawnRequests.GetUnsafeList(threadIndex).Length);
 
                 resolvedKey = trackedEntity;
                 isDeferred = true;
@@ -604,7 +613,7 @@ namespace FireAlt.VFXForge
             if (TryResolveCheckIndex(trackedEntity, out var resolvedKey, out var isDeferred))
             {
                 transform = isDeferred
-                    ? DeferredTransformBuffer[resolvedKey.IndexInData]
+                    ? GetDeferredRequest(resolvedKey).Transform
                     : TransformBuffer[resolvedKey.IndexInData];
                 return true;
             }
@@ -629,10 +638,117 @@ namespace FireAlt.VFXForge
             return true;
         }
         
+        internal void EnsureCapacity(int requiredCapacity)
+        {
+            if (requiredCapacity <= Capacity)
+            {
+                return;
+            }
+
+            var doubledCapacity = Capacity > int.MaxValue / 2 ? int.MaxValue : Capacity * 2;
+            var newCapacity = math.max(requiredCapacity, math.max(1, doubledCapacity));
+            if (UseMaxCapacity)
+            {
+                newCapacity = math.min(newCapacity, MaxCapacity);
+            }
+
+            if (newCapacity > int.MaxValue / 2)
+            {
+                throw new InvalidOperationException("Persistent VFX capacity is too large to allocate double-capacity storage.");
+            }
+
+            var oldStorageCapacity = Capacity * 2;
+            var newStorageCapacity = newCapacity * 2;
+
+            ResizeArray(ref TransformBuffer, newStorageCapacity);
+            if (DataSizeInBytes > 0)
+            {
+                ResizeArray(ref DataBuffer, newStorageCapacity * DataSizeInBytes);
+            }
+
+            if (ArrayDataSizeInBytes > 0)
+            {
+                ResizeArray(ref ArrayPtrBuffer, newStorageCapacity);
+            }
+
+            var newAliveMask = new UnsafeBitMaskRange(newStorageCapacity, Allocator.Persistent);
+            foreach (var trackedEntity in TrackedEntities)
+            {
+                newAliveMask.Set(trackedEntity.IndexInData);
+            }
+
+            foreach (var trackedEntity in TrackedEntityIds)
+            {
+                newAliveMask.Set(trackedEntity.IndexInData);
+            }
+
+            AliveMask.Dispose();
+            AliveMask = newAliveMask;
+
+            FreeIndices.EnsureCapacity(FreeIndices.Count + newStorageCapacity - oldStorageCapacity);
+            for (var i = oldStorageCapacity; i < newStorageCapacity; i++)
+            {
+                FreeIndices.Enqueue(i);
+            }
+
+            Capacity = newCapacity;
+        }
+
+        internal ref PersistentVFXDeferredRequest GetDeferredRequest(TrackedEntity trackedEntity)
+        {
+            DecodeDeferredIndex(trackedEntity.IndexInData, out var threadIndex, out var localIndex);
+            return ref SpawnRequests.GetUnsafeList(threadIndex).ElementAt(localIndex);
+        }
+
+        internal static int EncodeDeferredIndex(int threadIndex, int localIndex)
+        {
+            return localIndex * JobsUtility.ThreadIndexCount + threadIndex;
+        }
+
+        internal static void DecodeDeferredIndex(int index, out int threadIndex, out int localIndex)
+        {
+            threadIndex = index % JobsUtility.ThreadIndexCount;
+            localIndex = index / JobsUtility.ThreadIndexCount;
+        }
+
+        private static unsafe void ResizeArray<T>(ref UnsafeArray<T> array, int newLength)
+            where T : unmanaged
+        {
+            var resized = new UnsafeArray<T>(newLength, Allocator.Persistent);
+            if (array.IsCreated)
+            {
+                UnsafeUtility.MemCpy(resized.GetUnsafePtr(), array.GetUnsafePtr(), array.Length * UnsafeUtility.SizeOf<T>());
+                array.Dispose();
+            }
+
+            array = resized;
+        }
+
+        private unsafe ref T GetDeferredDataAsRef<T>(TrackedEntity trackedEntity)
+            where T : unmanaged
+        {
+            DecodeDeferredIndex(trackedEntity.IndexInData, out var threadIndex, out var localIndex);
+            ref var data = ref SpawnDataBuffer.GetUnsafeList(threadIndex);
+            return ref UnsafeUtility.AsRef<T>((byte*)data.Ptr + localIndex * DataSizeInBytes);
+        }
+
+        private void SetDeferredData<T>(TrackedEntity trackedEntity, T data)
+            where T : unmanaged
+        {
+            GetDeferredDataAsRef<T>(trackedEntity) = data;
+        }
+
+        private unsafe void SetDeferredDataUnsafe(TrackedEntity trackedEntity, byte* data)
+        {
+            DecodeDeferredIndex(trackedEntity.IndexInData, out var threadIndex, out var localIndex);
+            ref var deferredData = ref SpawnDataBuffer.GetUnsafeList(threadIndex);
+            UnsafeUtility.MemCpy((byte*)deferredData.Ptr + localIndex * DataSizeInBytes, data, DataSizeInBytes);
+        }
+
         public void Dispose()
         {
-            SpawnIndexBuffer.Dispose();
-            TransformBuffer.Dispose();
+            if (SpawnIndexBuffer.IsCreated) SpawnIndexBuffer.Dispose();
+            if (TransformBuffer.IsCreated) TransformBuffer.Dispose();
             AliveMask.Dispose();
             FreeIndices.Dispose();
             TrackedEntities.Dispose();
@@ -645,22 +761,20 @@ namespace FireAlt.VFXForge
             if (ArraySpawnIndexBuffer.IsCreated) ArraySpawnIndexBuffer.Dispose();
 
             // Deferred
-            DeferredTransformBuffer.Dispose();
+            for (var threadIndex = 0; threadIndex < JobsUtility.ThreadIndexCount; threadIndex++)
+            {
+                ref var requests = ref SpawnRequests.GetUnsafeList(threadIndex);
+                for (var i = 0; i < requests.Length; i++)
+                {
+                    requests.ElementAt(i).ArrayData.Dispose();
+                }
+            }
+
             SpawnRequests.Dispose();
-            SpawnEntityIdRequests.Dispose();
+            SpawnDataBuffer.Dispose();
             KillRequests.Dispose();
             DeferredToResolvedMap.Dispose();
             ResolvedToRequestMap.Dispose();
-            
-            if (DeferredDataBuffer.IsCreated) DeferredDataBuffer.Dispose();
-            if (DeferredArrayDataBuffer.IsCreated)
-            {
-                foreach (var pooledArray in DeferredArrayDataBuffer)
-                {
-                    pooledArray.Dispose();
-                }
-                DeferredArrayDataBuffer.Dispose();
-            }
         }
     }
 }

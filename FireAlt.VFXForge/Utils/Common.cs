@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Threading;
 using JetBrains.Annotations;
 using FireAlt.VFXForge.Data;
 using UnityEngine;
@@ -9,6 +10,29 @@ namespace FireAlt.VFXForge
 {
     public static class Common
     {
+        internal static bool TryReserveCapacity(bool useMaxCapacity, int maxCapacity, int usedCapacity, ref int reservations)
+        {
+            if (!useMaxCapacity)
+            {
+                return true;
+            }
+
+            var availableCapacity = Math.Max(maxCapacity - usedCapacity, 0);
+            while (true)
+            {
+                var current = Volatile.Read(ref reservations);
+                if (current >= availableCapacity)
+                {
+                    return false;
+                }
+
+                if (Interlocked.CompareExchange(ref reservations, current + 1, current) == current)
+                {
+                    return true;
+                }
+            }
+        }
+
         public static void TrySetInt(VisualEffect visualEffect, ShaderProperty intProperty, int value)
         {
             if (visualEffect.HasInt(intProperty.Id))

@@ -3,7 +3,7 @@
 1. Create unmanaged payload structs and mark custom payloads with `[VFXType(VFXTypeAttribute.Usage.GraphicsBuffer)]`.
 2. Create or choose a VFX Graph template from `Shaders/Templates`.
 3. Select the VFX Graph asset and run `FireAlt/Create VFX Definitions from VFX Assets` on the main toolbar.
-4. Configure the generated `VFXDefinition`: choose `Instant` or `Persistent`, set capacity and timeout, and select the single payload and array payload types.
+4. Configure the generated `VFXDefinition`: choose `Instant` or `Persistent`, set Initial Capacity and optional Max Capacity, set the timeout, and select the single payload and array payload types.
 5. Use the generated GameObject with `VisualEffect` and `HybridVisualEffect`. The menu creates and wires it to the generated definition.
 6.
     1. From ECS, fetch `VFXSingleton` using `SystemAPI.GetSingleton<VFXSingleton>()`, get the registered entry by `VFXKey`, and call `Spawn`.
@@ -95,14 +95,18 @@ Custom bakers are only needed when the default field editor is not enough, and d
 
 `VFXDefinition` fields:
 
-| Field               | Purpose                                                                                                                 |
-|---------------------|-------------------------------------------------------------------------------------------------------------------------|
-| `visualEffectAsset` | VFX Graph asset assigned to the backing `VisualEffect`.                                                                 |
-| `vfxType`           | `Instant` or `Persistent`.                                                                                              |
-| `capacity`          | Maximum active persistent entries. Persistent buffers allocate extra backing storage to handle holes and delayed reuse. |
-| `timeoutDuration`   | How long an inactive graph remains enabled before buffers are disposed and the GameObject is deactivated.               |
-| `vfxDataType`       | Optional per-spawn or per-instance payload type.                                                                        |
-| `vfxArrayDataType`  | Optional variable-length array payload type.                                                                            |
+| Field               | Purpose                                                                                                                |
+|---------------------|------------------------------------------------------------------------------------------------------------------------|
+| `visualEffectAsset` | VFX Graph asset assigned to the backing `VisualEffect`.                                                                |
+| `vfxType`           | `Instant` or `Persistent`.                                                                                             |
+| `initialCapacity`   | Starting logical allocation. Zero is valid. Storage grows on the first accepted request.                               |
+| `useMaxCapacity`    | Enables an optional logical spawn limit.                                                                               |
+| `maxCapacity`       | At least Initial Capacity. Persistent counts active + pending handles, Instant counts spawn calls until the next sync. |
+| `timeoutDuration`   | How long an inactive graph remains enabled before buffers are disposed and the GameObject is deactivated.              |
+| `vfxDataType`       | Optional per-spawn or per-instance payload type.                                                                       |
+| `vfxArrayDataType`  | Optional variable-length array payload type.                                                                           |
+
+An array spawn consumes one logical capacity slot regardless of its element count. Forge's elastic buffers do not change the authored VFX Graph particle-system capacity, overspawn beyond that compiled graph limit is still discarded by VFX Graph.
 
 ## VFX Graph Requirements
 

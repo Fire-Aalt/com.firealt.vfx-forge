@@ -1,5 +1,7 @@
+using FireAlt.Core.Inspectors;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.VFX;
 
 namespace FireAlt.VFXForge.Data
@@ -7,7 +9,11 @@ namespace FireAlt.VFXForge.Data
     public class VFXDecalDefinition : ScriptableObject
     {
         public VisualEffectAsset visualEffectAsset;
-        public int capacity = 100;
+        [FormerlySerializedAs("capacity")]
+        public int initialCapacity = 100;
+        public bool useMaxCapacity;
+        [ShowIf(nameof(useMaxCapacity))]
+        public int maxCapacity = 100;
         public float timeoutDuration = 30f;
         
         [VFXDataTypeDropdown(VFXDataTypeBakerKind.Data)]
@@ -19,7 +25,8 @@ namespace FireAlt.VFXForge.Data
         private void OnValidate()
         {
             timeoutDuration = math.max(timeoutDuration, 0);
-            capacity = math.max(capacity, 1);
+            initialCapacity = math.max(initialCapacity, 0);
+            maxCapacity = math.max(maxCapacity, initialCapacity);
         }
 #endif
 
@@ -28,7 +35,9 @@ namespace FireAlt.VFXForge.Data
             var inst = CreateInstance<VFXDefinition>();
             inst.key = newId;
             inst.timeoutDuration = timeoutDuration;
-            inst.capacity = capacity;
+            inst.initialCapacity = initialCapacity;
+            inst.useMaxCapacity = useMaxCapacity;
+            inst.maxCapacity = maxCapacity;
             inst.vfxDataType = vfxDataType;
             inst.vfxArrayDataType = vfxArrayDataType;
             inst.visualEffectAsset = visualEffectAsset;

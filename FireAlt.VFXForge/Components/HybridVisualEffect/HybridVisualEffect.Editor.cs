@@ -209,20 +209,21 @@ namespace FireAlt.VFXForge
             {
                 if (IsPersistentAlive()) return;
                 ref var entry = ref _singleton.GetPersistent(_vfxDefinition);
+                var entityId = gameObject.GetEntityId();
                 
                 var data = _uploadData.TryGetTempDataRaw(out var ptr);
                 var arrayData = _uploadArrayData.TryGetTempBytesDataRaw(out var bytes);
                 if (data)
                 {
-                    _trackedEntity = entry.SpawnUnsafe(_entity, ptr, bytes, _trackingDuration);
+                    _trackedEntity = entry.SpawnUnsafe(entityId, ptr, bytes, _trackingDuration);
                 }
                 else if (arrayData)
                 {
-                    _trackedEntity = entry.SpawnUnsafe(_entity, bytes, _trackingDuration);
+                    _trackedEntity = entry.SpawnUnsafe(entityId, bytes, _trackingDuration);
                 }
                 else
                 {
-                    _trackedEntity = entry.Spawn(_entity, _trackingDuration);
+                    _trackedEntity = entry.Spawn(entityId, _trackingDuration);
                 }
             }
             else

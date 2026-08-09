@@ -13,7 +13,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(40, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(40, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
 
                 var trackedEntity = fixture.SpawnPersistent(definition, Entity.Null, trackingDuration: 1.25f);
@@ -29,7 +29,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(41, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(41, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var singleton = fixture.GetSingleton();
                 ref var entry = ref singleton.GetPersistent(definition);
@@ -50,11 +50,77 @@ namespace FireAlt.VFXForge.Tests
         }
 
         [UnityTest]
-        public IEnumerator Spawn_WhenCapacityExceeded_ReturnsInvalidEntity()
+        public IEnumerator Spawn_WhenInitialCapacityExceeded_GrowsAndPreservesHandles()
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(50, VFXType.Persistent, capacity: 1);
+                var definition = fixture.CreateDefinition(50, VFXType.Persistent, initialCapacity: 1);
+                fixture.CreateAndRegisterVisualEffect(definition);
+
+                var first = fixture.SpawnPersistent(definition, Entity.Null);
+                var second = fixture.SpawnPersistent(definition, Entity.Null);
+                fixture.UpdateSystems();
+
+                Assert.IsTrue(first.IsValid);
+                Assert.IsTrue(second.IsValid);
+                Assert.IsTrue(fixture.IsPersistentAlive(definition, first));
+                Assert.IsTrue(fixture.IsPersistentAlive(definition, second));
+                Assert.That(fixture.GetSingleton().GetPersistent(definition).Capacity, Is.EqualTo(2));
+            });
+        }
+
+        [UnityTest]
+        public IEnumerator Spawn_WhenGrowthRepeats_PreservesResolvedIndicesAndHighWaterCapacity()
+        {
+            yield return VFXPlayModeTestFixture.Run(fixture =>
+            {
+                var definition = fixture.CreateDefinition(52, VFXType.Persistent, initialCapacity: 0);
+                fixture.CreateAndRegisterVisualEffect(definition);
+                var singleton = fixture.GetSingleton();
+                ref var entry = ref singleton.GetPersistent(definition);
+                var firstBurst = new TrackedEntity[5];
+                for (var i = 0; i < firstBurst.Length; i++)
+                {
+                    firstBurst[i] = entry.Spawn(Entity.Null);
+                }
+
+                fixture.UpdateSystems();
+                var firstResolvedIndices = new int[firstBurst.Length];
+                for (var i = 0; i < firstBurst.Length; i++)
+                {
+                    Assert.IsTrue(entry.DeferredToResolvedMap.TryGetValue(firstBurst[i], out var resolved));
+                    firstResolvedIndices[i] = resolved.IndexInData;
+                }
+
+                for (var i = 0; i < 6; i++)
+                {
+                    Assert.IsTrue(entry.Spawn(Entity.Null).IsValid);
+                }
+
+                fixture.UpdateSystems();
+
+                Assert.That(entry.Capacity, Is.EqualTo(11));
+                for (var i = 0; i < firstBurst.Length; i++)
+                {
+                    Assert.IsTrue(entry.DeferredToResolvedMap.TryGetValue(firstBurst[i], out var resolved));
+                    Assert.That(resolved.IndexInData, Is.EqualTo(firstResolvedIndices[i]));
+                    Assert.IsTrue(entry.IsAlive(firstBurst[i]));
+                    Assert.IsTrue(entry.TryKill(firstBurst[i]));
+                }
+
+                fixture.UpdateSystems();
+
+                Assert.That(entry.Capacity, Is.EqualTo(11));
+            });
+        }
+
+        [UnityTest]
+        public IEnumerator Spawn_WhenMaxCapacityExceeded_ReturnsInvalidEntity()
+        {
+            yield return VFXPlayModeTestFixture.Run(fixture =>
+            {
+                var definition = fixture.CreateDefinition(51, VFXType.Persistent, initialCapacity: 0,
+                    useMaxCapacity: true, maxCapacity: 1);
                 fixture.CreateAndRegisterVisualEffect(definition);
 
                 var first = fixture.SpawnPersistent(definition, Entity.Null);
@@ -70,7 +136,8 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(55, VFXType.Persistent, capacity: 1);
+                var definition = fixture.CreateDefinition(55, VFXType.Persistent, initialCapacity: 1,
+                    useMaxCapacity: true, maxCapacity: 1);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var first = fixture.SpawnPersistent(definition, Entity.Null);
                 fixture.UpdateSystems();
@@ -93,7 +160,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(56, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(56, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 fixture.SetTime(1.0, 0.1f);
                 var trackedEntity = fixture.SpawnPersistent(definition, Entity.Null, trackingDuration: 0.25f);
@@ -113,7 +180,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(60, VFXType.Persistent, capacity: 1);
+                var definition = fixture.CreateDefinition(60, VFXType.Persistent, initialCapacity: 1);
                 fixture.CreateAndRegisterVisualEffect(definition);
 
                 Assert.Throws<UnityEngine.Assertions.AssertionException>(() =>
@@ -126,7 +193,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(86, VFXType.Persistent, capacity: 2, hasData: true);
+                var definition = fixture.CreateDefinition(86, VFXType.Persistent, initialCapacity: 0, hasData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var initialData = VFXTestData.CreateDecal(30f);
                 var deferredData = VFXTestData.CreateDecal(40f);
@@ -150,7 +217,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(87, VFXType.Persistent, capacity: 2, hasArrayData: true);
+                var definition = fixture.CreateDefinition(87, VFXType.Persistent, initialCapacity: 0, hasArrayData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var arrayData = VFXTestData.CreateDecalArray(60f);
                 var singleton = fixture.GetSingleton();
@@ -169,7 +236,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(88, VFXType.Persistent, capacity: 2, hasData: true);
+                var definition = fixture.CreateDefinition(88, VFXType.Persistent, initialCapacity: 2, hasData: true);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var singleton = fixture.GetSingleton();
                 ref var entry = ref singleton.GetPersistent(definition);
@@ -189,7 +256,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(89, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(89, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
                 var entity = fixture.CreateTrackedEntity();
                 var trackedEntity = fixture.SpawnPersistent(definition, entity);
@@ -209,7 +276,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(70, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(70, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
 
                 var trackedEntity = fixture.SpawnPersistent(definition, Entity.Null);
@@ -229,7 +296,7 @@ namespace FireAlt.VFXForge.Tests
         {
             yield return VFXPlayModeTestFixture.Run(fixture =>
             {
-                var definition = fixture.CreateDefinition(80, VFXType.Persistent, capacity: 2);
+                var definition = fixture.CreateDefinition(80, VFXType.Persistent, initialCapacity: 2);
                 fixture.CreateAndRegisterVisualEffect(definition);
 
                 var trackedEntity = fixture.SpawnPersistent(definition, Entity.Null);

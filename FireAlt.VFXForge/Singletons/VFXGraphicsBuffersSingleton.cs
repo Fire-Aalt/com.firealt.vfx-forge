@@ -110,7 +110,7 @@ namespace FireAlt.VFXForge
             if (buffer == null || buffer.count < requiredCount)
             {
                 var bufferCount = buffer?.count * 2 ?? 0;
-                var newCapacity = math.ceilpow2(math.max(requiredCount, bufferCount));
+                var newCapacity = math.ceilpow2(math.max(1, math.max(requiredCount, bufferCount)));
                 
                 buffer?.Release();
                 buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, newCapacity, gpuSize);
@@ -124,7 +124,7 @@ namespace FireAlt.VFXForge
             if (buffer == null || buffer.count < minCapacity)
             {
                 var bufferCount = buffer?.count * 2 ?? 0;
-                var newCapacity = math.ceilpow2(math.max(minCapacity, bufferCount));
+                var newCapacity = math.ceilpow2(math.max(1, math.max(minCapacity, bufferCount)));
                 
                 buffer?.Release();
                 buffer = new GraphicsBuffer(GraphicsBuffer.Target.Structured, newCapacity, UnsafeUtility.SizeOf<T>());

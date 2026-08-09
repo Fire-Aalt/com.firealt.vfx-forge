@@ -2,6 +2,7 @@ using FireAlt.VFXForge.Data;
 using FireAlt.Core.Collections;
 using FireAlt.Core.Extensions;
 using Unity.Collections.LowLevel.Unsafe;
+using Unity.Mathematics;
 using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.VFX;
@@ -16,30 +17,38 @@ namespace FireAlt.VFXForge
         private static readonly ProfilerMarker ArrayDataMarker = new("Set ArrayDataBuffer");
         private static readonly ProfilerMarker ArrayPtrMarker = new("Set ArrayPtrBuffer");
         
-        private readonly GraphicsBuffer _spawnIndexBuffer;
-        private readonly GraphicsBuffer _transformBuffer;
+        private GraphicsBuffer _spawnIndexBuffer;
+        private GraphicsBuffer _transformBuffer;
         
         private GraphicsBuffer _arraySpawnIndexBuffer;
-        private readonly GraphicsBuffer _dataBuffer;
-        private readonly GraphicsBuffer _arrayPtrBuffer;
+        private GraphicsBuffer _dataBuffer;
+        private GraphicsBuffer _arrayPtrBuffer;
         private GraphicsBuffer _arrayDataBuffer;
         
         public PersistentVFXGraphicsBuffers(VisualEffect target, VFXDefinition definition) 
             : base(target, definition)
         {
-            var doubleCapacity = definition.capacity * 2;
-            CreateGraphicsBuffer(ref _transformBuffer, VFXProperties.TransformBuffer, doubleCapacity, UnsafeUtility.SizeOf<VFXTransform>());
-            CreateGraphicsBuffer(ref _spawnIndexBuffer, VFXProperties.SpawnIndexBuffer, doubleCapacity, UnsafeUtility.SizeOf<VFXSpawnIndex>());
+            var doubleCapacity = definition.InitialCapacity * 2;
+            CreateGraphicsBuffer(ref _transformBuffer, VFXProperties.TransformBuffer, math.max(1, doubleCapacity),
+                UnsafeUtility.SizeOf<VFXTransform>());
+
+            if (definition.DataGpuSize != 0 || definition.ArrayDataGpuSize == 0)
+            {
+                CreateGraphicsBuffer(ref _spawnIndexBuffer, VFXProperties.SpawnIndexBuffer, math.max(1, doubleCapacity),
+                    UnsafeUtility.SizeOf<VFXSpawnIndex>());
+            }
             
             if (definition.DataGpuSize != 0)
             {
-                CreateGraphicsBuffer(ref _dataBuffer, VFXProperties.DataBuffer, doubleCapacity, definition.DataGpuSize);
+                CreateGraphicsBuffer(ref _dataBuffer, VFXProperties.DataBuffer, math.max(1, doubleCapacity), definition.DataGpuSize);
             }
             if (definition.ArrayDataGpuSize != 0)
             {
-                CreateGraphicsBuffer(ref _arraySpawnIndexBuffer, VFXProperties.ArraySpawnIndexBuffer, doubleCapacity / 2, UnsafeUtility.SizeOf<VFXArraySpawnIndex>());
-                CreateGraphicsBuffer(ref _arrayPtrBuffer, VFXProperties.ArrayPtrBuffer, doubleCapacity, UnsafeUtility.SizeOf<VFXArrayPtr>());
-                ResizeArrayDataBuffer(4096);
+                CreateGraphicsBuffer(ref _arraySpawnIndexBuffer, VFXProperties.ArraySpawnIndexBuffer,
+                    math.max(1, definition.InitialCapacity), UnsafeUtility.SizeOf<VFXArraySpawnIndex>());
+                CreateGraphicsBuffer(ref _arrayPtrBuffer, VFXProperties.ArrayPtrBuffer, math.max(1, doubleCapacity),
+                    UnsafeUtility.SizeOf<VFXArrayPtr>());
+                ResizeArrayDataBuffer(definition.InitialCapacity * definition.ArrayDataGpuSize);
             }
         }
 
@@ -69,11 +78,13 @@ namespace FireAlt.VFXForge
 
         public void SetTransformBuffer(UnsafeArray<VFXTransform> data, UploadRange uploadRange)
         {
+            ResizeBuffer<VFXTransform>(Target, ref _transformBuffer, VFXProperties.TransformBuffer, data.Length);
             SetBuffer(_transformBuffer, data.AsNativeArray(), uploadRange, TransformMarker);
         }
         
         public void SetDataBuffer(UnsafeArray<byte> data, UploadRange uploadRange)
         {
+            ResizeBuffer(Target, ref _dataBuffer, VFXProperties.DataBuffer, DataGpuSize, data.Length);
             SetBuffer(_dataBuffer, data.AsNativeArray(), uploadRange.Expand(DataGpuSize), DataMarker);
         }
         
@@ -81,6 +92,8 @@ namespace FireAlt.VFXForge
         {
             if (spawnIndices.IsCreated)
             {
+                ResizeBuffer<VFXSpawnIndex>(Target, ref _spawnIndexBuffer, VFXProperties.SpawnIndexBuffer,
+                    spawnIndices.Length);
                 SetBuffer(_spawnIndexBuffer, spawnIndices.AsNativeArray(), new UploadRange(0, spawnIndices.Length), SpawnIndexMarker);
             }
 
@@ -99,6 +112,7 @@ namespace FireAlt.VFXForge
             
             ResizeArrayDataBuffer(arrayByteRange.EndIndex);
             SetBuffer(_arrayDataBuffer, dataList.AsNativeArray(), arrayByteRange, ArrayDataMarker);
+            ResizeBuffer<VFXArrayPtr>(Target, ref _arrayPtrBuffer, VFXProperties.ArrayPtrBuffer, arrayPtrs.Length);
             SetBuffer(_arrayPtrBuffer, arrayPtrs.AsNativeArray(), ptrUploadRange, ArrayPtrMarker);
         }
         

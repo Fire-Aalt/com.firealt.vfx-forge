@@ -1,6 +1,7 @@
 # Persistent VFX
 
-Long-lived VFX with explicit Spawn/Update/Kill API, optional tracked Entity/GameObject transform data support, but fixed capacity. Useful for controlled persistent VFXs, like fire, gameplay abilities, status effects and other.
+Long-lived VFX with explicit Spawn/Update/Kill API and optional tracked Entity/GameObject transform data support. 
+Forge storage grows elastically from Initial Capacity unless Use Max Capacity is enabled.
 
 `VFXTransformSystem` maintains transform information, alive state, and tracking duration of the attached `Entity`/`GameObject` (if it was passed to the Spawn method).
 Persistent VFX Spawn methods return a `TrackedEntity` handle, which is needed to do any operations on the effect instance:
@@ -35,7 +36,9 @@ var tracked = vfx.GetPersistent(VFXKeys.ElectroArc).Spawn(targetGO.GetEntityId()
 
 Persistent behavior:
 
-- If capacity is exceeded, the returned `TrackedEntity` is invalid, but the `Entity` inside of it is always valid.
+- Initial Capacity may be zero and controls only the starting allocation. Growth is geometric and retains the CPU allocation until unregister.
+- When Max Capacity is enabled, active plus accepted pending handles count toward it. A rejected spawn returns an invalid `TrackedEntity`, but the `Entity` inside it remains valid.
+- An array payload consumes one logical capacity slot regardless of its element count.
 - `Entity.Null` is valid for non-entity-tracked persistent effects.
 - `trackingDuration == 0` keeps tracking until the VFX is killed or the tracked entity dies.
 - Positive `trackingDuration` keeps the effect alive until `StartTrackingTime + trackingDuration`, then the transform system marks it dead.
@@ -71,6 +74,8 @@ entry.TryKill(trackedEntity);
 | `TryKill(TrackedEntity)`                                      | Requests the persistent effect to be killed.                                    |
 
 Handles spawned this frame are deferred until `SyncVFXSystem` resolves them, but all paths account for deferred handles.
+
+Growing Persistent storage reallocates and rebinds its CPU/GPU buffers while preserving existing resolved indices. This can cause a frame hitch and a temporary memory spike during growth. It does not increase the VFX Graph particle system's authored capacity; particles spawned beyond that independent compiled ceiling are still discarded by VFX Graph.
 
 ## Performance
 

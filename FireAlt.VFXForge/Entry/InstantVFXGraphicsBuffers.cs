@@ -24,11 +24,12 @@ namespace FireAlt.VFXForge
         {
             if (definition.DataGpuSize != 0)
             {
-                ResizeDataBuffer(4096);
+                ResizeDataBuffer(definition.InitialCapacity * definition.DataGpuSize);
             }
             if (definition.ArrayDataGpuSize != 0)
             {
-                ResizeArrayDataBuffer(4096, 32, 64);
+                ResizeArrayDataBuffer(definition.InitialCapacity * definition.ArrayDataGpuSize,
+                    definition.InitialCapacity, definition.InitialCapacity);
             }
         }
         

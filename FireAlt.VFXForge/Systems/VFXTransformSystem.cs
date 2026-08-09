@@ -6,6 +6,7 @@ using Unity.Burst.CompilerServices;
 using Unity.Collections;
 using Unity.Entities;
 using Unity.Jobs;
+using Unity.Jobs.LowLevel.Unsafe;
 using Unity.Mathematics;
 using Unity.Transforms;
 using UnityEngine;
@@ -51,32 +52,40 @@ namespace FireAlt.VFXForge
                 ref var entry = ref singleton.GetPersistent(key);
 
                 entry.EntityIdFrameData.Clear();
-                if (entry.SpawnEntityIdRequests.Length != 0 || !entry.TrackedEntityIds.IsEmpty)
+                if (entry.HasPendingRequests || !entry.TrackedEntityIds.IsEmpty)
                 {
                     entityIdPresent = true;
                 }
-                
-                foreach (var deferredKey in entry.SpawnEntityIdRequests)
-                {
-                    Burst.IsEnabled.Data.InvokeOut(deferredKey.EntityId, out EntityIdState entityIdState);
 
-                    if (Hint.Unlikely(entityIdState.TransformHandle == default))
+                for (var threadIndex = 0; threadIndex < JobsUtility.ThreadIndexCount; threadIndex++)
+                {
+                    ref var requests = ref entry.SpawnRequests.GetUnsafeList(threadIndex);
+                    for (var requestIndex = 0; requestIndex < requests.Length; requestIndex++)
                     {
-                        // Very unlikely that anyone will be destroying GameObjects
-                        ref var transformData = ref entry.DeferredTransformBuffer.ElementAt(deferredKey.IndexInData);
-                        transformData.SetAlive(false);
-                        transformData.SetEntityAlive(false);
-                        transformData.SetDidTransformSystemRun();
-                        
-                        entry.EntityIdFrameData.Add(default);
-                    }
-                    else
-                    {
-                        entry.EntityIdFrameData.Add(new EntityIdData
+                        ref var request = ref requests.ElementAt(requestIndex);
+                        if (!request.TrackedEntity.IsEntityId)
                         {
-                            LocalToWorld = new LocalToWorld { Value = entityIdState.TransformHandle.localToWorldMatrix },
-                            IsEnabled = entityIdState.IsEnabled
-                        });
+                            continue;
+                        }
+
+                        Burst.IsEnabled.Data.InvokeOut(request.TrackedEntity.EntityId, out EntityIdState entityIdState);
+                        if (Hint.Unlikely(entityIdState.TransformHandle == default))
+                        {
+                            // Very unlikely that anyone will be destroying GameObjects
+                            request.Transform.SetAlive(false);
+                            request.Transform.SetEntityAlive(false);
+                            request.Transform.SetDidTransformSystemRun();
+
+                            entry.EntityIdFrameData.Add(default);
+                        }
+                        else
+                        {
+                            entry.EntityIdFrameData.Add(new EntityIdData
+                            {
+                                LocalToWorld = new LocalToWorld { Value = entityIdState.TransformHandle.localToWorldMatrix },
+                                IsEnabled = entityIdState.IsEnabled
+                            });
+                        }
                     }
                 }
                 
@@ -141,13 +150,22 @@ namespace FireAlt.VFXForge
                 var i = 0;
                 if (entry.HasPendingRequests)
                 {
-                    foreach (var trackedEntity in entry.SpawnEntityIdRequests)
+                    for (var threadIndex = 0; threadIndex < JobsUtility.ThreadIndexCount; threadIndex++)
                     {
-                        ref var data = ref entry.DeferredTransformBuffer.ElementAt(trackedEntity.IndexInData);
-                        ref var entityIdData = ref entry.EntityIdFrameData.ElementAt(i);
-                        SetTransformData(ref data, ref entityIdData);
-                        data.SetDidTransformSystemRun();
-                        i++;
+                        ref var requests = ref entry.SpawnRequests.GetUnsafeList(threadIndex);
+                        for (var requestIndex = 0; requestIndex < requests.Length; requestIndex++)
+                        {
+                            ref var request = ref requests.ElementAt(requestIndex);
+                            if (!request.TrackedEntity.IsEntityId)
+                            {
+                                continue;
+                            }
+
+                            ref var entityIdData = ref entry.EntityIdFrameData.ElementAt(i);
+                            SetTransformData(ref request.Transform, ref entityIdData);
+                            request.Transform.SetDidTransformSystemRun();
+                            i++;
+                        }
                     }
                 }
                 
@@ -208,11 +226,20 @@ namespace FireAlt.VFXForge
 
                 if (entry.HasPendingRequests)
                 {
-                    foreach (var trackedEntity in entry.SpawnRequests)
+                    for (var threadIndex = 0; threadIndex < JobsUtility.ThreadIndexCount; threadIndex++)
                     {
-                        ref var data = ref entry.DeferredTransformBuffer.ElementAt(trackedEntity.IndexInData);
-                        SetTransformData(ref data, trackedEntity);
-                        data.SetDidTransformSystemRun();
+                        ref var requests = ref entry.SpawnRequests.GetUnsafeList(threadIndex);
+                        for (var requestIndex = 0; requestIndex < requests.Length; requestIndex++)
+                        {
+                            ref var request = ref requests.ElementAt(requestIndex);
+                            if (request.TrackedEntity.IsEntityId)
+                            {
+                                continue;
+                            }
+
+                            SetTransformData(ref request.Transform, request.TrackedEntity);
+                            request.Transform.SetDidTransformSystemRun();
+                        }
                     }
                 }
                 

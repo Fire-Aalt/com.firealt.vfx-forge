@@ -3,6 +3,7 @@ using FireAlt.Core.Inspectors;
 using FireAlt.Core.ObjectManagement;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.VFX;
 
 namespace FireAlt.VFXForge.Data
@@ -33,8 +34,10 @@ namespace FireAlt.VFXForge.Data
         }
         
         public VisualEffectAsset visualEffectAsset;
-        [ShowIf(nameof(IsPersistent))]
-        public int capacity = 100;
+        public int initialCapacity = 64;
+        public bool useMaxCapacity;
+        [ShowIf(nameof(useMaxCapacity))]
+        public int maxCapacity = 128;
         public float timeoutDuration = 30f;
         
         [EnumToggleButtons]
@@ -45,6 +48,8 @@ namespace FireAlt.VFXForge.Data
         public ulong vfxArrayDataType;
         
         public bool IsPersistent => vfxType == VFXType.Persistent;
+        public int InitialCapacity => math.max(initialCapacity, 0);
+        public int MaxCapacity => math.max(maxCapacity, InitialCapacity);
         public int DataGpuSize => DataTypeInfo.GpuSize;
         public int ArrayDataGpuSize => ArrayDataTypeInfo.GpuSize;
         
@@ -57,7 +62,8 @@ namespace FireAlt.VFXForge.Data
         private void OnValidate()
         {
             timeoutDuration = math.max(timeoutDuration, 0);
-            capacity = math.max(capacity, 1);
+            initialCapacity = math.max(initialCapacity, 0);
+            maxCapacity = math.max(maxCapacity, initialCapacity);
             OnVFXDefinitionChanged.Invoke();
         }
 #endif

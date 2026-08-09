@@ -57,6 +57,10 @@ namespace FireAlt.VFXForge
         internal UnsafeThreadToListMapper<byte> ArrayDataBuffer;
         internal UnsafeThreadToListMapper<VFXArraySpawnIndex> ArraySpawnIndexBuffer;
         internal UnsafeThreadToListMapper<VFXArrayPtr> ArrayPtrBuffer;
+
+        internal bool UseMaxCapacity;
+        internal int MaxCapacity;
+        internal int CapacityReservations;
         
         /// <summary>
         /// Gets the number of pending instant spawn requests.
@@ -98,6 +102,7 @@ namespace FireAlt.VFXForge
         internal void ResetRequestsCount()
         {
             PendingRequestsCount.Clear();
+            CapacityReservations = 0;
         }
 
         internal InstantVFXEntry(HybridVisualEffect hybridVisualEffect)
@@ -109,6 +114,8 @@ namespace FireAlt.VFXForge
             ArrayDataStableTypeHash = definition.vfxArrayDataType;
             DataSizeInBytes = definition.DataGpuSize;
             ArrayDataSizeInBytes = definition.ArrayDataGpuSize;
+            UseMaxCapacity = definition.useMaxCapacity;
+            MaxCapacity = definition.MaxCapacity;
             VFXKey = definition;
         }
         
@@ -116,10 +123,11 @@ namespace FireAlt.VFXForge
         /// Enqueues one instant spawn request with no per-spawn data.
         /// </summary>
         /// <exception cref="InvalidOperationException">Thrown in check builds when this VFX expects non-zero data.</exception>
-        public void Spawn()
+        /// <returns><see langword="true"/> when the request was accepted; otherwise, <see langword="false"/> when Max Capacity was reached.</returns>
+        public bool Spawn()
         {
             Common.CheckZeroSized(DataStableTypeHash);
-            SpawnBase();
+            return SpawnBase();
         }
 
         /// <summary>
@@ -128,12 +136,18 @@ namespace FireAlt.VFXForge
         /// <typeparam name="T">The type of the data element expected by the VFX definition.</typeparam>
         /// <param name="spawnData">The data to upload for this spawn request.</param>
         /// <exception cref="InvalidOperationException">Thrown in check builds when <typeparamref name="T"/> does not match the VFX definition.</exception>
-        public void Spawn<T>(T spawnData)
+        /// <returns><see langword="true"/> when the request was accepted; otherwise, <see langword="false"/> when Max Capacity was reached.</returns>
+        public bool Spawn<T>(T spawnData)
             where T : unmanaged
         {
             Common.CheckStableTypeHash<T>(DataStableTypeHash);
-            SpawnBase();
+            if (!SpawnBase())
+            {
+                return false;
+            }
+
             SetData(spawnData);
+            return true;
         }
 
         /// <summary>
@@ -142,13 +156,19 @@ namespace FireAlt.VFXForge
         /// <typeparam name="U">The type of each array element expected by the VFX definition.</typeparam>
         /// <param name="arrayData">The array data to upload for this spawn request.</param>
         /// <exception cref="InvalidOperationException">Thrown in check builds when the data or array type does not match the VFX definition.</exception>
-        public void Spawn<U>(NativeArray<U> arrayData) 
+        /// <returns><see langword="true"/> when the request was accepted; otherwise, <see langword="false"/> when Max Capacity was reached.</returns>
+        public bool Spawn<U>(NativeArray<U> arrayData) 
             where U : unmanaged
         {
             Common.CheckZeroSized(DataStableTypeHash);
             Common.CheckStableTypeHash<U>(ArrayDataStableTypeHash);
-            SpawnBase();
+            if (!SpawnBase())
+            {
+                return false;
+            }
+
             SpawnArray(arrayData.AsBytes());
+            return true;
         }
 
         /// <summary>
@@ -159,15 +179,21 @@ namespace FireAlt.VFXForge
         /// <param name="spawnData">The data to upload for this spawn request.</param>
         /// <param name="arrayData">The array data to upload for this spawn request.</param>
         /// <exception cref="InvalidOperationException">Thrown in check builds when either type does not match the VFX definition.</exception>
-        public void Spawn<T, U>(T spawnData, NativeArray<U> arrayData)
+        /// <returns><see langword="true"/> when the request was accepted; otherwise, <see langword="false"/> when Max Capacity was reached.</returns>
+        public bool Spawn<T, U>(T spawnData, NativeArray<U> arrayData)
             where T : unmanaged
             where U : unmanaged
         {
             Common.CheckStableTypeHash<T>(DataStableTypeHash);
             Common.CheckStableTypeHash<U>(ArrayDataStableTypeHash);
-            SpawnBase();
+            if (!SpawnBase())
+            {
+                return false;
+            }
+
             SetData(spawnData);
             SpawnArray(arrayData.AsBytes());
+            return true;
         }
 
         /// <summary>
@@ -176,15 +202,21 @@ namespace FireAlt.VFXForge
         /// <param name="spawnData">Pointer to one data element matching this entry's configured data size.</param>
         /// <param name="arrayData">Optional raw bytes for array data matching this entry's configured array element size.</param>
         /// <exception cref="UnityEngine.Assertions.AssertionException">Thrown in check builds when <paramref name="spawnData"/> is null.</exception>
-        public unsafe void SpawnUnsafe(byte* spawnData, NativeArray<byte> arrayData = default)
+        /// <returns><see langword="true"/> when the request was accepted; otherwise, <see langword="false"/> when Max Capacity was reached.</returns>
+        public unsafe bool SpawnUnsafe(byte* spawnData, NativeArray<byte> arrayData = default)
         {
             Assert.IsTrue(spawnData != null);
-            SpawnBase();
+            if (!SpawnBase())
+            {
+                return false;
+            }
+
             if (arrayData.IsCreated)
             {
                 SpawnArray(arrayData);
             }
             GetThreadList(DataBuffer).AddDataUnsafe(spawnData, DataSizeInBytes);
+            return true;
         }
 
         /// <summary>
@@ -192,19 +224,32 @@ namespace FireAlt.VFXForge
         /// </summary>
         /// <param name="arrayData">Raw bytes for array data matching this entry's configured array element size.</param>
         /// <exception cref="InvalidOperationException">Thrown in check builds when this VFX expects non-zero per-spawn data.</exception>
-        public void SpawnUnsafe(NativeArray<byte> arrayData)
+        /// <returns><see langword="true"/> when the request was accepted; otherwise, <see langword="false"/> when Max Capacity was reached.</returns>
+        public bool SpawnUnsafe(NativeArray<byte> arrayData)
         {
             Common.CheckZeroSized(DataStableTypeHash);
-            SpawnBase();
+            if (!SpawnBase())
+            {
+                return false;
+            }
+
             if (arrayData.IsCreated)
             {
                 SpawnArray(arrayData);
             }
+
+            return true;
         }
         
-        private void SpawnBase()
+        private bool SpawnBase()
         {
+            if (!Common.TryReserveCapacity(UseMaxCapacity, MaxCapacity, 0, ref CapacityReservations))
+            {
+                return false;
+            }
+
             PendingRequestsCount.GetUnsafeThreadData(JobsUtility.ThreadIndex).RequestsCount++;
+            return true;
         }
         
         private void SetData<T>(T spawnData)

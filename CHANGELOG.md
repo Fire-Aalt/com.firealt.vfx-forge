@@ -1,3 +1,11 @@
+## [1.2.0] - 2026-08-09
+
+### Changed
+* Replace fixed VFX definition capacity with Initial Capacity and an optional Max Capacity for both Instant and Persistent VFX.
+* Make CPU/GPU buffers grow elastically while preserving persistent handles and existing VFX Graph asset contracts.
+* Make all Instant `Spawn` and `SpawnUnsafe` overloads report acceptance with a bool return value.
+* Keep Persistent editor previews connected to their GameObject transform instead of temp ECS entity.
+
 ## [1.1.1] - 2026-07-10
 
 ### Fixed

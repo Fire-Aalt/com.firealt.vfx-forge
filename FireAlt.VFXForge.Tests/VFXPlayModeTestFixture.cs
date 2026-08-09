@@ -64,10 +64,12 @@ namespace FireAlt.VFXForge.Tests
         internal VFXDefinition CreateDefinition(
             int id,
             VFXType vfxType,
-            int capacity = 100,
+            int initialCapacity = 100,
             float timeoutDuration = 5f,
             bool hasData = false,
-            bool hasArrayData = false)
+            bool hasArrayData = false,
+            bool useMaxCapacity = false,
+            int maxCapacity = 100)
         {
             var definition = ScriptableObject.CreateInstance<VFXDefinition>();
             ((IUID)definition).ID = id;
@@ -77,7 +79,9 @@ namespace FireAlt.VFXForge.Tests
 #else
             throw new InvalidOperationException("VFX Forge playmode tests require the Unity Editor to load package VFX assets.");
 #endif
-            definition.capacity = capacity;
+            definition.initialCapacity = initialCapacity;
+            definition.useMaxCapacity = useMaxCapacity;
+            definition.maxCapacity = maxCapacity;
             definition.timeoutDuration = timeoutDuration;
             definition.vfxType = vfxType;
             definition.vfxDataType = hasData ? VFXTypeRegistry.GetStableTypeHash<VFXDecal>() : 0;
