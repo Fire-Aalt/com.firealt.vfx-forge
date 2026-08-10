@@ -4,12 +4,15 @@ using Unity.Burst;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
 using Unity.Entities;
+#if UNITY_EDITOR && UNITY_6000_5_OR_NEWER
+using Unity.Scripting.LifecycleManagement;
+#endif
 
 // Special thanks to DreamingLatios: https://github.com/Dreaming381/Latios-Framework/blob/master/LifeFX/Internal/GraphicsEventTypeRegistry.cs
 
 namespace FireAlt.VFXForge.Data
 {
-    public static class VFXTypeRegistry
+    public static partial class VFXTypeRegistry
     {
         private struct SharedKey { }
 
@@ -48,10 +51,26 @@ namespace FireAlt.VFXForge.Data
         private static bool _initialized;
         
 #if UNITY_EDITOR
+#if UNITY_6000_5_OR_NEWER
+        [OnCodeLoaded]
+        private static void InitializeEditor()
+        {
+            Refresh();
+        }
+#else
         [UnityEditor.InitializeOnLoadMethod]
+        private static void InitializeEditor()
+        {
+            AppDomain.CurrentDomain.AssemblyLoad -= OnAssemblyLoad;
+            AppDomain.CurrentDomain.AssemblyLoad += OnAssemblyLoad;
+            UnityEditor.EditorApplication.update -= RefreshIfPending;
+            UnityEditor.EditorApplication.update += RefreshIfPending;
+            Init();
+        }
+#endif
 #else
         [UnityEngine.RuntimeInitializeOnLoadMethod(UnityEngine.RuntimeInitializeLoadType.SubsystemRegistration)]
-#endif 
+#endif
         internal static void Init()
         {
             if (_initialized) return;
@@ -85,6 +104,62 @@ namespace FireAlt.VFXForge.Data
                 SharedStatic<int>.GetOrCreate(sharedKeyType, type).Data = typeIndex;
             }
         }
+
+#if UNITY_EDITOR
+        internal static event Action Refreshed;
+
+#if !UNITY_6000_5_OR_NEWER
+        private static bool _refreshPending;
+#endif
+
+        internal static void Refresh()
+        {
+#if !UNITY_6000_5_OR_NEWER
+            _refreshPending = false;
+#endif
+
+            if (_initialized)
+            {
+                ref var typeInfoList = ref VFXTypeInfoList.Data;
+                if (typeInfoList.IsCreated)
+                {
+                    typeInfoList.Dispose();
+                }
+
+                ref var stableTypeHashMap = ref StableTypeHashMap.Data;
+                if (stableTypeHashMap.IsCreated)
+                {
+                    stableTypeHashMap.Dispose();
+                }
+
+                _initialized = false;
+            }
+
+            Init();
+            Refreshed?.Invoke();
+        }
+
+#if !UNITY_6000_5_OR_NEWER
+        private static void OnAssemblyLoad(object sender, AssemblyLoadEventArgs args)
+        {
+            _refreshPending = true;
+        }
+#endif
+
+        internal static void RefreshIfPending()
+        {
+#if !UNITY_6000_5_OR_NEWER
+            if (!_refreshPending
+                || UnityEditor.EditorApplication.isCompiling
+                || UnityEditor.EditorApplication.isPlayingOrWillChangePlaymode)
+            {
+                return;
+            }
+
+            Refresh();
+#endif
+        }
+#endif
         
         public static Type GetType(ulong stableTypeHash)
         {

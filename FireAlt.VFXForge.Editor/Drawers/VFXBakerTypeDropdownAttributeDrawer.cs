@@ -14,6 +14,8 @@ namespace FireAlt.VFXForge.Editor
     {
         public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
+            VFXTypeRegistry.RefreshIfPending();
+
             var root = new VisualElement();
             var dropdownAttribute = (VFXBakerTypeDropdownAttribute)attribute;
 
@@ -55,8 +57,19 @@ namespace FireAlt.VFXForge.Editor
                 root.Add(searchElement);
             }
 
+            void QueueRebuild()
+            {
+                root.schedule.Execute(Rebuild);
+            }
+
             Rebuild();
             root.TrackSerializedObjectValue(property.serializedObject, _ => Rebuild());
+            root.RegisterCallback<AttachToPanelEvent>(_ =>
+            {
+                VFXTypeRegistry.Refreshed -= QueueRebuild;
+                VFXTypeRegistry.Refreshed += QueueRebuild;
+            });
+            root.RegisterCallback<DetachFromPanelEvent>(_ => VFXTypeRegistry.Refreshed -= QueueRebuild);
             return root;
         }
 

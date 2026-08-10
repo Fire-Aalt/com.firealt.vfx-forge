@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using FireAlt.Core.Utility;
 using UnityEngine;
 using UnityEngine.VFX;
 
@@ -37,6 +36,8 @@ namespace FireAlt.VFXForge.Data
         
         internal static void Init()
         {
+            var assemblies = GetLoadedAssemblies();
+
             DataBakerTypesMap.Clear();
             ArrayBakerTypesMap.Clear();
             TypesList.Clear();
@@ -44,17 +45,21 @@ namespace FireAlt.VFXForge.Data
             ArrayTypesList.Clear();
             TypeNamesDictionary.Clear();
             
-            AddVFXTypeBakers<IVFXDataTypeBaker>(typeof(VFXDataTypeBaker<>), DataBakerTypesMap);
-            AddVFXTypeBakers<IVFXArrayDataTypeBaker>(typeof(VFXArrayDataTypeBaker<>), ArrayBakerTypesMap);
+            AddVFXTypeBakers<IVFXDataTypeBaker>(typeof(VFXDataTypeBaker<>), DataBakerTypesMap, assemblies);
+            AddVFXTypeBakers<IVFXArrayDataTypeBaker>(typeof(VFXArrayDataTypeBaker<>), ArrayBakerTypesMap, assemblies);
             AddUnitySupportedVFXTypes();
-            AddReflectedVFXTypes();
+            AddReflectedVFXTypes(assemblies);
         }
 
-        private static void AddVFXTypeBakers<TBakerInterface>(Type bakerBaseType, Dictionary<Type, List<Type>> bakerTypeMap)
+        private static void AddVFXTypeBakers<TBakerInterface>(
+            Type bakerBaseType,
+            Dictionary<Type, List<Type>> bakerTypeMap,
+            IReadOnlyList<Assembly> assemblies)
         {
-            var dataAssembly = ReflectionUtils.GetAssemblyWithType<TBakerInterface>();
-              
-            var reflectedTypesList = ReflectionUtils.GetAllAssemblyWithReference(dataAssembly)
+            var dataAssembly = typeof(TBakerInterface).Assembly;
+
+            var reflectedTypesList = assemblies
+                .Where(assembly => IsAssemblyReferencingAssembly(assembly, dataAssembly))
                 .Where(FilterAssembly)
                 .SelectMany(domainAssembly => domainAssembly.GetTypes())
                 .Where(type => typeof(TBakerInterface).IsAssignableFrom(type))
@@ -82,11 +87,12 @@ namespace FireAlt.VFXForge.Data
             }
         }
 
-        private static void AddReflectedVFXTypes()
+        private static void AddReflectedVFXTypes(IReadOnlyList<Assembly> assemblies)
         {
-            var vfxAssembly = ReflectionUtils.GetAssemblyWithType<VFXTypeAttribute>();
+            var vfxAssembly = typeof(VFXTypeAttribute).Assembly;
 
-            var reflectedTypesList = ReflectionUtils.GetAllAssemblyWithReference(vfxAssembly)
+            var reflectedTypesList = assemblies
+                .Where(assembly => IsAssemblyReferencingAssembly(assembly, vfxAssembly))
                 .Where(FilterAssembly)
                 .SelectMany(domainAssembly => domainAssembly.GetTypes())
                 .Where(type => type.GetCustomAttribute<VFXTypeAttribute>() != null)
@@ -134,6 +140,26 @@ namespace FireAlt.VFXForge.Data
             
             if (assemblyName.EndsWith(".Editor")) return false;
             return true;
+        }
+
+        private static bool IsAssemblyReferencingAssembly(Assembly assembly, Assembly reference)
+        {
+            if (assembly == reference)
+            {
+                return true;
+            }
+
+            var referenceName = reference.GetName().Name;
+            return assembly.GetReferencedAssemblies().Any(referenced => referenced.Name == referenceName);
+        }
+
+        private static IReadOnlyList<Assembly> GetLoadedAssemblies()
+        {
+#if UNITY_6000_6_OR_NEWER
+            return UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies();
+#else
+            return AppDomain.CurrentDomain.GetAssemblies();
+#endif
         }
         
         private static bool FilterTypes(Type type)

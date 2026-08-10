@@ -10,34 +10,50 @@ namespace FireAlt.VFXForge.Editor
     [CustomPropertyDrawer(typeof(VFXDataTypeDropdownAttribute))]
     public class VFXDataTypeDropdownAttributeDrawer : PropertyDrawer
     {
-        private static readonly Dictionary<VFXDataTypeBakerKind, List<SearchView.Item>> ItemsByBakerKind = new();
-
         public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
+            VFXTypeRegistry.RefreshIfPending();
+
+            var root = new VisualElement();
             var dropdownAttribute = (VFXDataTypeDropdownAttribute)attribute;
 
-            if (!ItemsByBakerKind.TryGetValue(dropdownAttribute.BakerKind, out var items))
+            void Rebuild()
             {
-                items = ItemsByBakerKind[dropdownAttribute.BakerKind] = GenerateItems(dropdownAttribute.BakerKind);
+                root.Clear();
+                var items = GenerateItems(dropdownAttribute.BakerKind);
+                var searchElement = new SearchElement(items, string.Empty, property.displayName);
+                searchElement.OnSelection += item =>
+                {
+                    var stableTypeHash = (ulong)item.Data!;
+                    property.longValue = (long)stableTypeHash;
+                    property.serializedObject.ApplyModifiedProperties();
+                };
+
+                var searchButton = searchElement.Q<Button>();
+                searchElement.SetText = item => HashToName((ulong)item.Data, searchButton.worldBound.width);
+
+                searchElement.RegisterCallback<GeometryChangedEvent>(_ =>
+                {
+                    searchElement.Text = HashToName((ulong)property.longValue, searchButton.worldBound.width);
+                });
+
+                root.Add(searchElement);
             }
 
-            var searchElement = new SearchElement(items, string.Empty, property.displayName);
-            searchElement.OnSelection += item =>
+            void QueueRebuild()
             {
-                var stableTypeHash = (ulong)item.Data!;
-                property.longValue = (long)stableTypeHash;
-                property.serializedObject.ApplyModifiedProperties();
-            };
+                root.schedule.Execute(Rebuild);
+            }
 
-            var searchButton = searchElement.Q<Button>();
-            searchElement.SetText = item => HashToName((ulong)item.Data, searchButton.worldBound.width);
-
-            searchElement.RegisterCallback<GeometryChangedEvent>(_ =>
+            root.RegisterCallback<AttachToPanelEvent>(_ =>
             {
-                searchElement.Text = HashToName((ulong)property.longValue, searchButton.worldBound.width);
+                VFXTypeRegistry.Refreshed -= QueueRebuild;
+                VFXTypeRegistry.Refreshed += QueueRebuild;
             });
+            root.RegisterCallback<DetachFromPanelEvent>(_ => VFXTypeRegistry.Refreshed -= QueueRebuild);
 
-            return searchElement;
+            Rebuild();
+            return root;
         }
 
         private static string HashToName(ulong stableTypeHash, float width)

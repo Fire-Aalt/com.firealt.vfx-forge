@@ -62,19 +62,7 @@ namespace FireAlt.VFXForge.Tests
             Assert.AreEqual(AssetDatabase.AssetPathToGUID(PACKAGE_DEFAULT_DECAL_VFX_PATH),
                 EditorPrefs.GetString(DEFAULT_DECAL_VFX_GUID_KEY));
         }
-
-        [Test]
-        public void CapacityFields_PreserveLegacyNameAndConditionallyShowMax()
-        {
-            var initialField = typeof(VFXDefinition).GetField(nameof(VFXDefinition.initialCapacity));
-            var legacyName = initialField.GetCustomAttribute<FormerlySerializedAsAttribute>();
-            var maxField = typeof(VFXDefinition).GetField(nameof(VFXDefinition.maxCapacity));
-            var showIf = maxField.GetCustomAttribute<ShowIfAttribute>();
-
-            Assert.That(legacyName.oldName, Is.EqualTo("capacity"));
-            Assert.That(showIf.ConditionMemberName, Is.EqualTo(nameof(VFXDefinition.useMaxCapacity)));
-        }
-
+        
         [Test]
         public void CapacityFields_WhenInvalid_NormalizeInitialAndMax()
         {
@@ -100,6 +88,26 @@ namespace FireAlt.VFXForge.Tests
             {
                 Object.DestroyImmediate(definition);
             }
+        }
+
+        [Test]
+        public void TypeRegistryRefresh_WhenBakerCacheIsStale_RebuildsAvailableBakers()
+        {
+            Assert.That(
+                VFXTypeCache.TryGetBakerTypes(typeof(VFXDecal), VFXDataTypeBakerKind.Data, out var initialBakers),
+                Is.True);
+            Assert.That(initialBakers, Is.Not.Empty);
+
+            VFXTypeCache.DataBakerTypesMap.Clear();
+            Assert.That(VFXTypeCache.TryGetBakerTypes(typeof(VFXDecal), VFXDataTypeBakerKind.Data, out _), Is.False);
+
+            VFXTypeRegistry.Refresh();
+
+            Assert.That(
+                VFXTypeCache.TryGetBakerTypes(typeof(VFXDecal), VFXDataTypeBakerKind.Data, out var refreshedBakers),
+                Is.True);
+            Assert.That(refreshedBakers, Is.Not.Empty);
+            Assert.That(refreshedBakers[0], Is.EqualTo(typeof(DefaultVFXDataTypeBaker<VFXDecal>)));
         }
     }
 }

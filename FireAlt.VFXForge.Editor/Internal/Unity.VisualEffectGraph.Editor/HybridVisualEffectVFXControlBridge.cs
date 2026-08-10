@@ -17,6 +17,7 @@ namespace UnityEditor.VFX.UI
         private const string InspectionTrackerTypeName = INSPECTION_TRACKER_FULL_NAME + ", FireAlt.VFXForge.Editor";
         private const string ON_HIERARCHY_SELECTION_CHANGED_METHOD_NAME = "OnHierarchySelectionChanged";
         private const string BOUNDS_RECORDER_FIELD_NAME = "m_BoundsRecorder";
+        private const int POST_RELOAD_PREPARATION_UPDATES = 10;
         private static readonly object PatchMarker = new();
         private static readonly FieldInfo DebugUIField = typeof(VFXComponentBoard).GetField("m_DebugUI", BindingFlags.Instance | BindingFlags.NonPublic);
         private static readonly FieldInfo BoundsRecorderField = typeof(VFXComponentBoard).GetField(BOUNDS_RECORDER_FIELD_NAME, BindingFlags.Instance | BindingFlags.NonPublic);
@@ -31,12 +32,23 @@ namespace UnityEditor.VFX.UI
         private static MethodInfo s_EditorStopMethod;
         private static PropertyInfo s_HybridVisualEffectProperty;
         private static PropertyInfo s_PrimaryEffectProperty;
+        private static int s_OpenWindowPreparationUpdates;
 
         static HybridVisualEffectVFXControlBridge()
         {
             EditorApplication.update += Update;
+            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             Selection.selectionChanged += OnSelectionChanged;
             EditorApplication.delayCall += Update;
+            s_OpenWindowPreparationUpdates = POST_RELOAD_PREPARATION_UPDATES;
+        }
+
+        private static void OnPlayModeStateChanged(PlayModeStateChange state)
+        {
+            if (state == PlayModeStateChange.EnteredEditMode)
+            {
+                s_OpenWindowPreparationUpdates = POST_RELOAD_PREPARATION_UPDATES;
+            }
         }
 
         private static void OnSelectionChanged()
@@ -53,6 +65,12 @@ namespace UnityEditor.VFX.UI
 
         private static void Update()
         {
+            if (s_OpenWindowPreparationUpdates > 0)
+            {
+                PrepareOpenWindowsAfterReload();
+                --s_OpenWindowPreparationUpdates;
+            }
+
             PatchUnsafeUnitySelectionHandler();
             AttachInspectedHybridToMatchingWindows();
 
@@ -129,6 +147,11 @@ namespace UnityEditor.VFX.UI
                     graphView.attachedComponent = null;
                 }
 
+                if (!CanCreateBoundsRecorder(graphView))
+                {
+                    continue;
+                }
+
                 graphView.attachedComponent = visualEffect;
                 window.Repaint();
             }
@@ -150,6 +173,11 @@ namespace UnityEditor.VFX.UI
                     continue;
                 }
 
+                if (graphView != null && !CanCreateBoundsRecorder(graphView))
+                {
+                    continue;
+                }
+
                 try
                 {
                     window.AttachTo(visualEffect);
@@ -157,6 +185,63 @@ namespace UnityEditor.VFX.UI
                 catch (MissingComponentException)
                 {
                     continue;
+                }
+            }
+        }
+
+        private static bool CanCreateBoundsRecorder(VFXView graphView)
+        {
+            if (TryValidateParticleData(graphView))
+            {
+                return true;
+            }
+
+            try
+            {
+                foreach (var block in graphView.controller.graph.children
+                             .OfType<VFXContext>()
+                             .SelectMany(context => context.children)
+                             .OfType<VFXSubgraphBlock>())
+                {
+                    block.RecreateCopy();
+                }
+            }
+            catch (Exception exception) when (exception is NullReferenceException or InvalidOperationException)
+            {
+                return false;
+            }
+
+            return TryValidateParticleData(graphView);
+        }
+
+        private static bool TryValidateParticleData(VFXView graphView)
+        {
+            try
+            {
+                foreach (var data in graphView.GetAllContexts()
+                             .Select(context => context.controller.model.GetData())
+                             .OfType<VFXDataParticle>()
+                             .Distinct())
+                {
+                    _ = data.CanBeCompiled();
+                }
+
+                return true;
+            }
+            catch (NullReferenceException)
+            {
+                return false;
+            }
+        }
+
+        private static void PrepareOpenWindowsAfterReload()
+        {
+            foreach (var window in VFXViewWindow.GetAllWindows())
+            {
+                var graphView = window?.graphView;
+                if (graphView != null)
+                {
+                    _ = CanCreateBoundsRecorder(graphView);
                 }
             }
         }
@@ -468,5 +553,6 @@ namespace UnityEditor.VFX.UI
 #else
         public static Assembly[] AllAssemblies => _allAssemblies ??= AppDomain.CurrentDomain.GetAssemblies();
 #endif
+
     }
 }

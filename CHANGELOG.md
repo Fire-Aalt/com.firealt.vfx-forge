@@ -1,3 +1,24 @@
+## [1.2.5] - 2026-08-10
+
+### Fixed
+* Keep the editor-only VFX type refresh event out of the Burst-visible registry static constructor.
+* Use Unity's code lifecycle callback to refresh VFX types on Unity 6000.5 and newer, with the assembly-load polling fallback retained for older Editors.
+
+## [1.2.4] - 2026-08-09
+
+### Fixed
+* Recreate stale open-window VFX subgraph copies after reloads and Play Mode tests, before a VisualEffect inspector can attach.
+
+## [1.2.3] - 2026-08-09
+
+### Fixed
+* Defer HybridVisualEffect VFX Graph attachment while subgraph resources are temporarily incomplete.
+
+## [1.2.2] - 2026-08-09
+
+### Fixed
+* Refresh VFX types, stable hashes, baker mappings, and open dropdowns when assemblies change without a domain reload.
+
 ## [1.2.1] - 2026-08-09
 
 ### Fixed

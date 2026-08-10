@@ -317,6 +317,9 @@ namespace FireAlt.VFXForge
 
             if (isInspected)
             {
+                VFXTypeRegistry.RefreshIfPending();
+                SetVFXDataBaker();
+
                 if (_isEditorInspectionActive)
                 {
                     return;
@@ -331,6 +334,8 @@ namespace FireAlt.VFXForge
                 _isEditorInspectionActive = true;
                 VFXDefinition.OnVFXDefinitionChanged -= RefreshDataAndReinit;
                 VFXDefinition.OnVFXDefinitionChanged += RefreshDataAndReinit;
+                VFXTypeRegistry.Refreshed -= RefreshDataAndReinit;
+                VFXTypeRegistry.Refreshed += RefreshDataAndReinit;
 
                 SetFocusedBounds();
                 if (gameObject.activeInHierarchy)
@@ -348,6 +353,7 @@ namespace FireAlt.VFXForge
 
             _isEditorInspectionActive = false;
             VFXDefinition.OnVFXDefinitionChanged -= RefreshDataAndReinit;
+            VFXTypeRegistry.Refreshed -= RefreshDataAndReinit;
             if (this != null && gameObject.activeInHierarchy)
             {
                 EditorStop();
