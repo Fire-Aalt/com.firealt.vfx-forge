@@ -50,6 +50,7 @@ namespace FireAlt.VFXForge
 
         private void OnDisable()
         {
+            EditorApplication.delayCall -= CheckEditorRespawn;
             if (!EditorApplication.isPlaying)
             {
                 Cleanup();
@@ -61,14 +62,23 @@ namespace FireAlt.VFXForge
             Kill();
             Spawn();
              
-            EditorApplication.delayCall += () =>
+            EditorApplication.delayCall -= CheckEditorRespawn;
+            EditorApplication.delayCall += CheckEditorRespawn;
+        }
+
+        private void CheckEditorRespawn()
+        {
+            if (this == null || !isActiveAndEnabled || !_isEditorInspectionActive ||
+                EditorApplication.isPlayingOrWillChangePlaymode)
             {
-                var visualEffect = VisualEffect;
-                if (gameObject.activeInHierarchy && visualEffect != null && visualEffect.aliveParticleCount <= 0)
-                {
-                    DelayEditorRespawn();
-                }
-            };
+                return;
+            }
+
+            var visualEffect = VisualEffect;
+            if (visualEffect != null && visualEffect.aliveParticleCount <= 0)
+            {
+                DelayEditorRespawn();
+            }
         }
 
         internal void SetEditorPlayRate(float value)
@@ -352,6 +362,7 @@ namespace FireAlt.VFXForge
             }
 
             _isEditorInspectionActive = false;
+            EditorApplication.delayCall -= CheckEditorRespawn;
             VFXDefinition.OnVFXDefinitionChanged -= RefreshDataAndReinit;
             VFXTypeRegistry.Refreshed -= RefreshDataAndReinit;
             if (this != null && gameObject.activeInHierarchy)

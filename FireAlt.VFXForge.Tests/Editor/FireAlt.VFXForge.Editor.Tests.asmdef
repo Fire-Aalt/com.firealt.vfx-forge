@@ -1,0 +1,14 @@
+{
+    "name": "FireAlt.VFXForge.Editor.Tests",
+    "rootNamespace": "FireAlt.VFXForge.Tests",
+    "references": [
+        "FireAlt.VFXForge"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "autoReferenced": false,
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ]
+}

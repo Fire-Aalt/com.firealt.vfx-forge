@@ -1,5 +1,5 @@
 #if BL_CORE_EXTENSIONS && !BL_DISABLE_PAUSE
-using BovineLabs.Core.Pause;
+using BovineLabs.Nerve.Pause;
 using UnityEngine;
 
 namespace FireAlt.VFXForge.BovineLabs
