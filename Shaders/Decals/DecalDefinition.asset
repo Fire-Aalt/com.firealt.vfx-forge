@@ -12,9 +12,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 16c72f97dd8c496c9450b2f0d52c3291, type: 3}
   m_Name: DecalDefinition
   m_EditorClassIdentifier: FireAlt.VFXForge.Data::FireAlt.VFXForge.Data.VFXDecalDefinition
-  visualEffectAsset: {fileID: 8926484042661614526, guid: 7726391f387fba546bfa72ee446f656c,
-    type: 3}
-  capacity: 100
+  visualEffectAsset: {fileID: 8926484042661614526, guid: 7726391f387fba546bfa72ee446f656c, type: 3}
+  initialCapacity: 100
+  useMaxCapacity: 0
+  maxCapacity: 100
   timeoutDuration: 30
-  vfxDataType: 7035935116385097323
+  vfxDataType: 16815171310816176223
   vfxArrayDataType: 0
