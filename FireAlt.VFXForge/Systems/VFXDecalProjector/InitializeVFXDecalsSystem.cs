@@ -237,7 +237,7 @@ namespace FireAlt.VFXForge
                 var secondaryTexture = SecondaryTexturesBuffer[i];
 
                 var veName = secondaryTexture.name.TrimStart('_');
-                if (ve.HasTexture(veName))
+                if (ve.HasTexture(veName) && secondaryTexture.texture != null)
                 {
                     ve.SetTexture(veName, secondaryTexture.texture);
                 }
