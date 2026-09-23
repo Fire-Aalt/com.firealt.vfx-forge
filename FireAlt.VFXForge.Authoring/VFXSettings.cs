@@ -1,8 +1,10 @@
+using Unity.Scripting.LifecycleManagement;
 using FireAlt.VFXForge.Data;
 using UnityEditor;
 
 namespace FireAlt.VFXForge.Authoring
 {
+    [NoAutoStaticsCleanup]
     public class VFXSettings : SettingsProvider
     {
         private const string PREFERENCES_PATH = "Preferences/FireAlt/VFX Forge";

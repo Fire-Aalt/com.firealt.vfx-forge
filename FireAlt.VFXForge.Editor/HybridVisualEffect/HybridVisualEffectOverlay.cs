@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Reflection;
 using UnityEditor;
@@ -6,25 +7,14 @@ using UnityEngine;
 
 namespace FireAlt.VFXForge.Editor
 {
-    [Overlay(
-        typeof(SceneView),
-        "Scene View/Hybrid Visual Effect",
-        "Hybrid Visual Effect",
-        defaultDockZone = DockZone.RightColumn,
-        defaultDockPosition = DockPosition.Bottom,
-        defaultDockIndex = 0,
-        defaultLayout = Layout.Panel,
-        defaultWidth = 226,
-        defaultHeight = 85)]
+    [Overlay(typeof(SceneView), "Scene View/Hybrid Visual Effect", "Hybrid Visual Effect", 
+        defaultDockZone = DockZone.RightColumn, defaultDockPosition = DockPosition.Bottom, defaultDockIndex = 0,
+        defaultLayout = Layout.Panel, defaultWidth = 226, defaultHeight = 85)]
+    [NoAutoStaticsCleanup]
     public class HybridVisualEffectOverlay : IMGUIOverlay, ITransientOverlay
     {
-        private delegate float PowerSliderContentDelegate(
-            GUIContent label,
-            float value,
-            float leftValue,
-            float rightValue,
-            float power,
-            GUILayoutOption[] options);
+        private delegate float PowerSliderContentDelegate(GUIContent label, float value, float leftValue, 
+            float rightValue, float power, GUILayoutOption[] options);
 
         private const string VfxPackageName = "com.unity.visualeffectgraph";
         private const string DefaultIconPath = "Packages/com.unity.visualeffectgraph/Editor/SceneWindow/Textures/";

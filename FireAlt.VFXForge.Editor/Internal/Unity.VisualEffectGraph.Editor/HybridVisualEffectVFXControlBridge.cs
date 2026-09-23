@@ -1,14 +1,17 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Linq;
 using System.Reflection;
+using UnityEditor.Scripting.LifecycleManagement;
 using UnityEngine;
+using UnityEngine.Assemblies;
 using UnityEngine.UIElements;
 using UnityEngine.VFX;
 
 namespace UnityEditor.VFX.UI
 {
-    [InitializeOnLoad]
-    internal static class HybridVisualEffectVFXControlBridge
+    [NoAutoStaticsCleanup]
+    internal static partial class HybridVisualEffectVFXControlBridge
     {
         private const string ADVANCED_VISUAL_EFFECT_EDITOR_TYPE_NAME = "UnityEditor.VFX.AdvancedVisualEffectEditor";
         private const string HYBRID_VISUAL_EFFECT_FULL_NAME = "FireAlt.VFXForge.HybridVisualEffect";
@@ -34,22 +37,25 @@ namespace UnityEditor.VFX.UI
         private static PropertyInfo s_PrimaryEffectProperty;
         private static int s_OpenWindowPreparationUpdates;
 
-        static HybridVisualEffectVFXControlBridge()
+        [OnCodeInitializing]
+        private static void Initialize()
         {
             EditorApplication.update += Update;
-            EditorApplication.playModeStateChanged += OnPlayModeStateChanged;
             Selection.selectionChanged += OnSelectionChanged;
             EditorApplication.delayCall += Update;
             s_OpenWindowPreparationUpdates = POST_RELOAD_PREPARATION_UPDATES;
         }
 
-        private static void OnPlayModeStateChanged(PlayModeStateChange state)
+        [OnCodeUnloading]
+        private static void Unload()
         {
-            if (state == PlayModeStateChange.EnteredEditMode)
-            {
-                s_OpenWindowPreparationUpdates = POST_RELOAD_PREPARATION_UPDATES;
-            }
+            EditorApplication.update -= Update;
+            Selection.selectionChanged -= OnSelectionChanged;
+            EditorApplication.delayCall -= Update;
         }
+
+        [OnEnteringEditMode]
+        private static void OnEnteringEditMode() => s_OpenWindowPreparationUpdates = POST_RELOAD_PREPARATION_UPDATES;
 
         private static void OnSelectionChanged()
         {
@@ -551,7 +557,7 @@ namespace UnityEditor.VFX.UI
 #if UNITY_6000_6_OR_NEWER
         public static Assembly[] AllAssemblies => _allAssemblies ??= UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies().ToArray();
 #else
-        public static Assembly[] AllAssemblies => _allAssemblies ??= AppDomain.CurrentDomain.GetAssemblies();
+        public static Assembly[] AllAssemblies => _allAssemblies ??= CurrentAssemblies.GetLoadedAssemblies().ToArray();
 #endif
 
     }

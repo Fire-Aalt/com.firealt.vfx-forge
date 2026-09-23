@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using FireAlt.VFXForge.Data;
 using FireAlt.Core.Collections;
@@ -16,6 +17,7 @@ namespace FireAlt.VFXForge
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(PresentationSystemGroup), OrderLast = true)]
     [BurstCompile]
+    [NoAutoStaticsCleanup]
     public partial struct SyncVFXSystem : ISystem
     {
         private struct VFXStateChange
@@ -24,6 +26,7 @@ namespace FireAlt.VFXForge
             public bool Enabled;
         }
         
+        [NoAutoStaticsCleanup]
         private static class Burst
         {
             public static readonly SharedStatic<BurstInterop> GetVFXActivityStatus = 

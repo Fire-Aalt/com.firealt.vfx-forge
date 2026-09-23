@@ -1,11 +1,12 @@
+using Unity.Scripting.LifecycleManagement;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 
 namespace FireAlt.VFXForge.Editor
 {
-    [InitializeOnLoad]
-    internal static class HybridVisualEffectInspectionTracker
+    [NoAutoStaticsCleanup]
+    internal static partial class HybridVisualEffectInspectionTracker
     {
         private const string UNITY_VFX_OVERLAY_ID = "Scene View/Visual Effect";
 
@@ -16,12 +17,22 @@ namespace FireAlt.VFXForge.Editor
         private static bool _isRebuildQueued;
         private static bool _isUnityVfxOverlayHidden;
 
-        static HybridVisualEffectInspectionTracker()
+        [OnCodeInitializing]
+        private static void Initialize()
         {
             Selection.selectionChanged += RequestRebuild;
-            AssemblyReloadEvents.beforeAssemblyReload += RestoreUnityVfxOverlayStateVoid;
             EditorApplication.quitting += RestoreUnityVfxOverlayStateVoid;
             EditorApplication.delayCall += RequestRebuild;
+        }
+
+        [OnCodeUnloading]
+        private static void Unload()
+        {
+            RestoreUnityVfxOverlayStateVoid();
+            Selection.selectionChanged -= RequestRebuild;
+            EditorApplication.quitting -= RestoreUnityVfxOverlayStateVoid;
+            EditorApplication.delayCall -= RequestRebuild;
+            EditorApplication.delayCall -= RebuildIfQueued;
         }
 
         internal static HybridVisualEffect PrimaryEffect => _activeEffects.Count > 0 ? _activeEffects[0] : null;

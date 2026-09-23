@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using FireAlt.VFXForge.Data;
 using FireAlt.Core.Extensions;
 using FireAlt.Core.Utility;
@@ -18,6 +19,7 @@ namespace FireAlt.VFXForge
     [UpdateInGroup(typeof(UpdateVFXSystemGroup))]
     public partial struct VFXTransformSystem : ISystem
     {
+        [NoAutoStaticsCleanup]
         private static class Burst
         {
             public static readonly SharedStatic<BurstInterop> IsEnabled =

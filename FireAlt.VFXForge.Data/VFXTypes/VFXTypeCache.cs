@@ -1,12 +1,15 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEngine;
+using UnityEngine.Assemblies;
 using UnityEngine.VFX;
 
 namespace FireAlt.VFXForge.Data
 {
+    [NoAutoStaticsCleanup]
     internal static class VFXTypeCache
     {
         public static readonly Dictionary<Type, List<Type>> DataBakerTypesMap = new();
@@ -155,11 +158,7 @@ namespace FireAlt.VFXForge.Data
 
         private static IReadOnlyList<Assembly> GetLoadedAssemblies()
         {
-#if UNITY_6000_6_OR_NEWER
-            return UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies();
-#else
-            return AppDomain.CurrentDomain.GetAssemblies();
-#endif
+            return CurrentAssemblies.GetLoadedAssemblies();
         }
         
         private static bool FilterTypes(Type type)

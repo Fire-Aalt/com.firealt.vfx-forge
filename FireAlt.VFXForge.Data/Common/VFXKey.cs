@@ -1,7 +1,9 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 
 namespace FireAlt.VFXForge.Data
 {
+    [NoAutoStaticsCleanup]
     public struct VFXKey : IEquatable<VFXKey>
     {
         public ushort Value;

@@ -1,7 +1,9 @@
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 
 namespace FireAlt.VFXForge.Data
 {
+    [NoAutoStaticsCleanup]
     public static class VFXProperties
     {
         // Persistent & Instant

@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using FireAlt.VFXForge.Data;
 using FireAlt.Core.Collections;
@@ -13,6 +14,7 @@ namespace FireAlt.VFXForge
 {
     [WorldSystemFilter(WorldSystemFilterFlags.Default | WorldSystemFilterFlags.Editor)]
     [UpdateInGroup(typeof(InitializeVFXSystemGroup))]
+    [NoAutoStaticsCleanup]
     public partial class InitializeVFXDecalsSystem : SystemBase
     {
         public struct DecalEntry

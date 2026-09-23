@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using FireAlt.Core.Editor;
 using UnityEditor;
 using UnityEngine;
@@ -5,12 +6,14 @@ using UnityEngine.UIElements;
 
 namespace FireAlt.VFXForge.Editor
 {
-    [InitializeOnLoad]
-    public static class HybridVisualEffectStyleResources
+    
+    [NoAutoStaticsCleanup]
+    public static partial class HybridVisualEffectStyleResources
     {
-        public static readonly StyleSheet HybridVisualEffectEditorStyleSheet;
+        public static StyleSheet HybridVisualEffectEditorStyleSheet;
 
-        static HybridVisualEffectStyleResources()
+        [OnCodeInitializing]
+        private static void Initialize()
         {
             HybridVisualEffectEditorStyleSheet = Load<StyleSheet>("Styles/HybridVisualEffectEditor.uss");
         }

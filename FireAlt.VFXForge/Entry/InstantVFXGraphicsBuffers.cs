@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using FireAlt.VFXForge.Data;
 using FireAlt.Core.Extensions;
 using Unity.Collections.LowLevel.Unsafe;
@@ -7,6 +8,7 @@ using UnityEngine.VFX;
 
 namespace FireAlt.VFXForge
 {
+    [NoAutoStaticsCleanup]
     public class InstantVFXGraphicsBuffers : VFXGraphicsBuffers
     {
         private static readonly ProfilerMarker DataMarker = new("Set DataBuffer");

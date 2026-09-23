@@ -4,9 +4,9 @@ using UnityEngine;
 
 namespace FireAlt.VFXForge.BovineLabs
 {
-    public static class BovineLabsPauseRegistry
+    public static partial class BovineLabsPauseRegistry
     {
-        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        [OnEnteringPlayMode]
         private static void Register()
         {
             PauseUtility.UpdateWhilePaused.Add(typeof(SyncVFXSystem));

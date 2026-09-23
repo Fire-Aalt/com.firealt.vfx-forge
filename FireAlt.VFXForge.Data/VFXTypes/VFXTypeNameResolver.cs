@@ -1,4 +1,5 @@
 using System;
+using UnityEngine.Assemblies;
 
 namespace FireAlt.VFXForge.Data
 {
@@ -26,7 +27,7 @@ namespace FireAlt.VFXForge.Data
 #if UNITY_6000_4_OR_NEWER
             foreach (var assembly in UnityEngine.Assemblies.CurrentAssemblies.GetLoadedAssemblies())
 #else
-            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            foreach (var assembly in CurrentAssemblies.GetLoadedAssemblies())
 #endif
             {
                 type = assembly.GetType(storedTypeName);

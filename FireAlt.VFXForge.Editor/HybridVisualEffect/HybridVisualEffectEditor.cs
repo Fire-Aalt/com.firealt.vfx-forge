@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Collections.Generic;
 using FireAlt.Core.Editor.Inspectors;
@@ -8,6 +9,7 @@ using UnityEngine.UIElements;
 namespace FireAlt.VFXForge.Editor
 {
     [CustomEditor(typeof(HybridVisualEffect))]
+    [NoAutoStaticsCleanup]
     public class HybridVisualEffectEditor : UnityEditor.Editor
     {
         private const int VISIBILITY_REFRESH_INTERVAL_MS = 200;

@@ -327,7 +327,6 @@ namespace FireAlt.VFXForge
 
             if (isInspected)
             {
-                VFXTypeRegistry.RefreshIfPending();
                 SetVFXDataBaker();
 
                 if (_isEditorInspectionActive)

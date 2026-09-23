@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using FireAlt.VFXForge.Data;
 using FireAlt.Core.Collections;
 using FireAlt.Core.Extensions;
@@ -9,6 +10,7 @@ using UnityEngine.VFX;
 
 namespace FireAlt.VFXForge
 {
+    [NoAutoStaticsCleanup]
     public class PersistentVFXGraphicsBuffers : VFXGraphicsBuffers
     {
         private static readonly ProfilerMarker TransformMarker = new("Set TransformBuffer");

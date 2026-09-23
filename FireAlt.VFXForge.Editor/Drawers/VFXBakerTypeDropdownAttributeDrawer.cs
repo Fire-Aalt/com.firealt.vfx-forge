@@ -14,8 +14,6 @@ namespace FireAlt.VFXForge.Editor
     {
         public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
-            VFXTypeRegistry.RefreshIfPending();
-
             var root = new VisualElement();
             var dropdownAttribute = (VFXBakerTypeDropdownAttribute)attribute;
 

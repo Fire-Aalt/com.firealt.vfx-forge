@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using Unity.Assertions;
 using Unity.Entities;
@@ -6,6 +7,7 @@ using UnityEngine;
 
 namespace FireAlt.VFXForge.Data
 {
+    [NoAutoStaticsCleanup]
     public struct TrackedEntity : IEquatable<TrackedEntity>
     {
         private readonly Entity _entity;

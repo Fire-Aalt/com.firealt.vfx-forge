@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using FireAlt.Core.Utility;
 using FireAlt.VFXForge.Data;
 using Unity.Burst;
@@ -13,6 +14,7 @@ namespace FireAlt.VFXForge
     [BurstCompile]
     public partial struct UpdateVFXDecalsSystem : ISystem
     {
+        [NoAutoStaticsCleanup]
         private static class Burst
         {
             public static readonly SharedStatic<BurstInterop> Camera = 

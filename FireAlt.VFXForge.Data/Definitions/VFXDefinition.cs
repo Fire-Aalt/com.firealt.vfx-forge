@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using FireAlt.Core.Inspectors;
 using FireAlt.Core.ObjectManagement;
@@ -8,6 +9,7 @@ using UnityEngine.VFX;
 
 namespace FireAlt.VFXForge.Data
 {
+    [NoAutoStaticsCleanup]
     public class VFXDefinition : ScriptableObject, IUID
     {
         [SerializeField, InspectorReadOnly]

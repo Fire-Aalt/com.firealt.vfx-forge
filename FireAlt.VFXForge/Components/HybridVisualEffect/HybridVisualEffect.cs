@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using UnityEngine;
 using UnityEngine.VFX;
 using Unity.Entities;
@@ -11,6 +12,7 @@ namespace FireAlt.VFXForge
     [ExecuteAlways]
     [RequireComponent(typeof(VisualEffect))]
     [DefaultExecutionOrder(-100)] // Needed for Start to be a valid place to use World
+    [NoAutoStaticsCleanup]
     public partial class HybridVisualEffect : MonoBehaviour
     {
         private static readonly int BoundsProperty = Shader.PropertyToID("Bounds");

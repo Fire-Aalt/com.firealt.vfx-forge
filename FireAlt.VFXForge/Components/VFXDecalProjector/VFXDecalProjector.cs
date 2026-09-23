@@ -1,3 +1,4 @@
+using Unity.Scripting.LifecycleManagement;
 using System;
 using FireAlt.VFXForge.Data;
 using FireAlt.Core;
@@ -15,6 +16,7 @@ namespace FireAlt.VFXForge
 {
     [ExecuteAlways]
     [DefaultExecutionOrder(-100)] // Needed for Start to be a valid place to use World
+    [NoAutoStaticsCleanup]
     public partial class VFXDecalProjector : MonoBehaviour
     {
         [Header("References")]
