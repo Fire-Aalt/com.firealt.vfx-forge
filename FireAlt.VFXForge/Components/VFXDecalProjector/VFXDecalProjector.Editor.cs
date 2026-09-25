@@ -63,6 +63,8 @@ namespace FireAlt.VFXForge
         {
             public override void Bake(VFXDecalProjector authoring)
             {
+                DependsOn(authoring.VFXDecalDefinition);
+                DependsOn(authoring._sprite);
                 var entity = GetEntity(TransformUsageFlags.Renderable);
 
                 var commands = new BakerCommands(this, entity);
