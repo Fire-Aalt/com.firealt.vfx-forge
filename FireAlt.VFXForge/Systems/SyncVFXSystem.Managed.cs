@@ -47,6 +47,7 @@ namespace FireAlt.VFXForge
             foreach (var stateChange in args.StateChanges)
             {
                 var hybridVisualEffect = stateChange.HybridVisualEffect.Value;
+                if (hybridVisualEffect == null) continue;
                 hybridVisualEffect.SetVFXActive(stateChange.Enabled);
                 var definition = hybridVisualEffect.VFXDefinition;
                 VFXKey key = definition;
