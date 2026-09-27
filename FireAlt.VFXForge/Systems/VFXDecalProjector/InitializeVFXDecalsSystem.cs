@@ -9,6 +9,7 @@ using Unity.Entities;
 using UnityEngine;
 using UnityEngine.VFX;
 using Object = UnityEngine.Object;
+using System.Diagnostics.CodeAnalysis;
 
 namespace FireAlt.VFXForge
 {
@@ -62,6 +63,7 @@ namespace FireAlt.VFXForge
             _decalVFXMap.Dispose();
         }
         
+        [SuppressMessage("FireAlt.Analyzers", "FA1002", Justification = "Rare init logic")]
         protected override void OnUpdate()
         {
             var uninitializedQuery = SystemAPI.QueryBuilder().WithAll<RuntimeDecalLookup>().Build();
@@ -74,7 +76,7 @@ namespace FireAlt.VFXForge
             {
                 usedLookups = new NativeHashSet<DecalLookup>(8, WorldUpdateAllocator);
                 var gatherQuery = Application.isPlaying ? uninitializedQuery : SystemAPI.QueryBuilder().WithPresent<RuntimeDecalLookup>().Build();
-                
+
                 Dependency = new GatherDecalLookups
                 {
                     DecalLookups = usedLookups
@@ -125,6 +127,7 @@ namespace FireAlt.VFXForge
         }
 #endif
 
+        [SuppressMessage("FireAlt.Analyzers", "FA1001", Justification = "Rare init logic")]
         private void CreateNewDecalVFX(VFXSingleton vfxSingleton, NativeHashSet<DecalLookup> usedLookups)
         {
             var keyMap = new NativeHashMap<DecalLookup, VFXKey>(4, WorldUpdateAllocator);

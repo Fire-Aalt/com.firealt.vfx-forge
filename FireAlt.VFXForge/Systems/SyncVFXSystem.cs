@@ -11,6 +11,7 @@ using Unity.Entities;
 using Unity.Jobs;
 using Unity.Jobs.LowLevel.Unsafe;
 using UnityEngine;
+using System.Diagnostics.CodeAnalysis;
 
 namespace FireAlt.VFXForge
 {
@@ -57,41 +58,43 @@ namespace FireAlt.VFXForge
             SystemAPI.GetSingleton<VFXSingleton>().Dispose();
             _stateChanges.Dispose();
         }
-        
+
         [BurstCompile]
+        [SuppressMessage("FireAlt.Analyzers", "FA1002", 
+            Justification = "Required Complete() on a fast job for a proper VFX Graph data upload in the same frame")]
         public void OnUpdate(ref SystemState state)
         {
             state.EntityManager.CompleteDependencyBeforeRW<VFXSingleton>();
-            
+
             ref var vfxSingleton = ref SystemAPI.GetSingletonRW<VFXSingleton>().ValueRW;
             Burst.VFXSystemVersion.Data++;
 
             var deltaTime = SystemAPI.Time.DeltaTime;
-            
+
             if (Application.isPlaying)
             {
                 using var toRemove = NativeListPool<AliveVFX>.Rent();
                 RemoveTimedOutVFX(vfxSingleton.InstantAliveVFX, deltaTime, toRemove.List);
                 RemoveTimedOutVFX(vfxSingleton.PersistentAliveVFX, deltaTime, toRemove.List);
             }
-                
-            AddVFX(vfxSingleton.PersistentVFXGraphEntries, vfxSingleton.PersistentAliveVFX); 
+
+            AddVFX(vfxSingleton.PersistentVFXGraphEntries, vfxSingleton.PersistentAliveVFX);
             AddVFX(vfxSingleton.InstantVFXGraphEntries, vfxSingleton.InstantAliveVFX);
-    
+
             var persistentKeys = vfxSingleton.PersistentAliveVFX.GetKeyArray(state.WorldUpdateAllocator);
             var resolvePersistentHandle = new ResolvePersistentJob
             {
                 VFXSingleton = vfxSingleton,
                 KeysArray = persistentKeys,
             }.ScheduleParallel(persistentKeys.Length, 1, state.Dependency);
-            
+
             var instantKeys = vfxSingleton.InstantAliveVFX.GetKeyArray(state.WorldUpdateAllocator);
             var resolveInstantHandle = new ResolveInstantJob
             {
                 VFXSingleton = vfxSingleton,
                 KeysArray = instantKeys,
             }.ScheduleParallel(instantKeys.Length, 1, state.Dependency);
-            
+
             JobHandle.CombineDependencies(resolveInstantHandle, resolvePersistentHandle).Complete();
 
             var args = new ManagedArgs
