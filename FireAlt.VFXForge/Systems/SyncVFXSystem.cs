@@ -270,7 +270,8 @@ namespace FireAlt.VFXForge
                         var deferredTransform = request.Transform;
                         if (!deferredTransform.DidTransformSystemRun())
                         {
-                            throw new Exception($"A persistent VFXKey({entry.VFXKey.Value}) spawn was requested between `VFXTransformSystem` and `SyncVFXSystem` which means the upload data does not carry Transform information. Do not spawn persistent VFX in `LateUpdate`.");
+                            Debug.LogError($"A persistent VFXKey({entry.VFXKey.Value}) spawn was requested between `VFXTransformSystem` and `SyncVFXSystem` which means the upload data does not carry Transform information. Do not spawn persistent VFX in `LateUpdate`.");
+                            continue;
                         }
                         if (!deferredTransform.IsAlive())
                         {
