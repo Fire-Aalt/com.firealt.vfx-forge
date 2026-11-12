@@ -10,9 +10,9 @@ namespace FireAlt.VFXForge.Editor
 {
     public abstract class VFXTypeBakerWrapperDrawerBase : PropertyDrawer
     {
-        private const string RootFieldIndentClassName = "hybrid-vfx-editor-baker-root-indent";
-        private const string WarningClassName = "vfx-type-baker-wrapper-warning";
-        private const string HiddenFieldClassName = "vfx-type-baker-wrapper-hidden-field";
+        private const string ROOT_FIELD_INDENT_CLASS_NAME = "hybrid-vfx-editor-baker-root-indent";
+        private const string WARNING_CLASS_NAME = "vfx-type-baker-wrapper-warning";
+        private const string HIDDEN_FIELD_CLASS_NAME = "vfx-type-baker-wrapper-hidden-field";
         
         private HelpBox _warningBox;
         private PropertyField _hiddenDataField;
@@ -26,7 +26,7 @@ namespace FireAlt.VFXForge.Editor
         public override VisualElement CreatePropertyGUI(SerializedProperty property)
         {
             var root = new VisualElement();
-            root.styleSheets.Add(HybridVisualEffectStyleResources.HybridVisualEffectEditorStyleSheet);
+            root.TryAddStyleSheet(HybridVisualEffectStyleResources.HybridVisualEffectEditorStyleSheet);
             var bakerProperty = SerializationUtils.FindRelativeProperty(property, "_baker");
             var bakerTypeProperty = SerializationUtils.FindRelativeProperty(property, "_selectedBakerTypeName");
 
@@ -38,7 +38,7 @@ namespace FireAlt.VFXForge.Editor
             _bakerTypePropertyField = new PropertyField(bakerTypeProperty, "Baker Type");
             root.Add(_bakerTypePropertyField);
             _rootPropertyField = new PropertyField(bakerProperty, property.displayName);
-            _rootPropertyField.AddToClassList(RootFieldIndentClassName);
+            _rootPropertyField.AddToClassList(ROOT_FIELD_INDENT_CLASS_NAME);
             root.Add(_rootPropertyField);
             _lastBakerManagedReferenceType = bakerProperty.managedReferenceFullTypename;
             _onChangedMethod = ResolveOnChangedMethod();
@@ -156,11 +156,11 @@ namespace FireAlt.VFXForge.Editor
             _warningBox.Q<Label>().style.fontSize = 12f;
             _warningBox.text = $"'{vfxTypeName}' VFX type could not be drawn using a default baker. " +
                                $"The VFX type should be marked [Serializable] or a dedicated '{BakerBaseTypeName}' should be created.";
-            _warningBox.AddToClassList(WarningClassName);
+            _warningBox.AddToClassList(WARNING_CLASS_NAME);
             root.Insert(propertyFieldIndex, _warningBox);
 
             _rootPropertyField.style.display = DisplayStyle.None;
-            _rootPropertyField.AddToClassList(HiddenFieldClassName);
+            _rootPropertyField.AddToClassList(HIDDEN_FIELD_CLASS_NAME);
             _hiddenDataField = _rootPropertyField;
         }
 
@@ -190,7 +190,7 @@ namespace FireAlt.VFXForge.Editor
             }
 
             _rootPropertyField = new PropertyField(bakerProperty, property.displayName);
-            _rootPropertyField.AddToClassList(RootFieldIndentClassName);
+            _rootPropertyField.AddToClassList(ROOT_FIELD_INDENT_CLASS_NAME);
             _rootPropertyField.BindProperty(bakerProperty);
             _rootPropertyField.RegisterCallback<GeometryChangedEvent>(_ => root.schedule.Execute(() => RefreshWarnings(root, property)));
             if (insertIndex < 0 || insertIndex > root.childCount)
@@ -244,7 +244,7 @@ namespace FireAlt.VFXForge.Editor
             }
 
             _hiddenDataField.style.display = DisplayStyle.Flex;
-            _hiddenDataField.RemoveFromClassList(HiddenFieldClassName);
+            _hiddenDataField.RemoveFromClassList(HIDDEN_FIELD_CLASS_NAME);
             _hiddenDataField = null;
         }
     }

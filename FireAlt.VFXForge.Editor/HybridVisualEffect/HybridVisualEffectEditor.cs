@@ -1,3 +1,4 @@
+using FireAlt.Core.Editor;
 using Unity.Scripting.LifecycleManagement;
 using System;
 using System.Collections.Generic;
@@ -18,8 +19,8 @@ namespace FireAlt.VFXForge.Editor
         public override VisualElement CreateInspectorGUI()
         {
             var root = new VisualElement();
-            root.styleSheets.Add(DrawerStyleResources.CommonStyleSheet);
-            root.styleSheets.Add(HybridVisualEffectStyleResources.HybridVisualEffectEditorStyleSheet);
+            root.TryAddStyleSheet(DrawerStyleResources.CommonStyleSheet);
+            root.TryAddStyleSheet(HybridVisualEffectStyleResources.HybridVisualEffectEditorStyleSheet);
 
             var conditionBindings = new List<ConditionBinding>();
             var vfxDefinitionProperty = serializedObject.FindProperty(HybridVisualEffect.VFX_DEFINITION_PROPERTY_NAME);
